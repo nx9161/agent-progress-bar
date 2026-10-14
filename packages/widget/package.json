@@ -1,0 +1,1 @@
+{"author":"Naman Parmar","description":"Embeddable <uapb-progress> web component + iframe wrapper for the Universal Agent Progress Bar. Timer-free: the host pushes state, the element renders.","license":"MIT","main":"src/uapb-widget.js","name":"uapb-widget","type":"commonjs","version":"0.1.0"}

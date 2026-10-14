@@ -1,0 +1,41 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- UAPB iframe wrapper — the SECONDARY embed path (canonical is <uapb-progress>).
+     Hosts MUST embed this with sandbox="allow-scripts" (no allow-same-origin).
+     Hosts SHOULD serve the parent page with a Content-Security-Policy
+     frame-ancestors allowlist naming exactly who may frame this page.
+     No meta CSP is set here on purpose: under sandbox without
+     allow-same-origin the document has an opaque origin, so script-src 'self'
+     would block these same-origin scripts. The sandbox attribute is the control. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UAPB progress widget</title>
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; }
+  uapb-progress { display: block; width: 100%; }
+</style>
+</head>
+<body>
+<uapb-progress id="w"></uapb-progress>
+<script src="../src/uapb-core.js"></script>
+<script src="../src/uapb-widget.js"></script>
+<script src="../src/embed-listener.js"></script>
+<script>
+(function () {
+  "use strict";
+  var el = document.getElementById("w");
+  // Origin allowlist comes from ?allow=https://host (repeatable, https only).
+  // Empty/missing allowlist => default DENY: no postMessage is processed.
+  var allowlist = window.UAPBEmbed.parseAllowlist(window.location.search);
+  window.UAPBEmbed.createListener({ element: el, allowedOrigins: allowlist });
+  // Optional one-shot seed from ?percent=&eta=&stage= (validated numerics).
+  var seed = window.UAPBEmbed.parseSeed(window.location.search);
+  if (Object.keys(seed).length > 0) {
+    el.setProgress(seed);
+  }
+})();
+</script>
+</body>
+</html>

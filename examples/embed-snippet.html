@@ -1,0 +1,55 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- UAPB iframe embed example (SECONDARY path — canonical is <uapb-progress>).
+     1. Serve packages/widget/embed/iframe.html from YOUR origin.
+     2. Embed with sandbox="allow-scripts" (no allow-same-origin).
+     3. Pass ?allow=https://your-site (repeatable) so the iframe's origin
+        allowlist admits your page. No allowlist => the widget ignores
+        every message (default DENY).
+     4. Send updates with an EXPLICIT targetOrigin — never '*'.
+     5. Serve YOUR page with: Content-Security-Policy: frame-ancestors
+        https://your-site   (lists exactly who may frame the widget page).
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UAPB iframe embed example</title>
+</head>
+<body>
+<h1>Iframe embed example</h1>
+
+<iframe
+  id="uapbFrame"
+  title="Agent progress bar"
+  src="../packages/widget/embed/iframe.html?allow=https%3A%2F%2Fyour-site.example"
+  sandbox="allow-scripts"
+  width="100%"
+  height="120"
+  style="border: 1px solid #26303D; border-radius: 10px;">
+</iframe>
+
+<button id="sendBtn" type="button">Send 42% update</button>
+
+<script>
+(function () {
+  "use strict";
+  // Replace with the origin that actually serves iframe.html.
+  var WIDGET_ORIGIN = "https://your-site.example";
+  var frame = document.getElementById("uapbFrame");
+
+  document.getElementById("sendBtn").addEventListener("click", function () {
+    // Explicit targetOrigin. NEVER '*'.
+    frame.contentWindow.postMessage(
+      {
+        type: "uapb-progress",
+        version: 1,
+        payload: { percent: 42, etaSeconds: 30, stage: "Reasoning" }
+      },
+      WIDGET_ORIGIN
+    );
+  });
+})();
+</script>
+</body>
+</html>

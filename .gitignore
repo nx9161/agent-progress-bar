@@ -1,0 +1,7 @@
+node_modules/
+.env
+.env.local
+*.log
+.DS_Store
+# Internal build spec — not part of the public release
+war-room-build-spec.md

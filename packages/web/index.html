@@ -1,0 +1,74 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- UAPB concept demo — SIMULATED RUN. No AI is connected.
+     This is the build source. scripts/build-demo.js inlines the CSS/JS
+     and injects the CSP meta (with script+style hashes) into dist/index.html. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Universal Agent Progress Bar — Concept Demo</title>
+<meta name="description" content="Concept demo of an open, agent-agnostic progress layer: a live 0-100% progress bar with countdown that any AI agent can report through. Simulated run — no AI is connected.">
+<!--UAPB:HEAD-EXTRAS-->
+<!--UAPB:STYLES-->
+</head>
+<body>
+<div class="page">
+
+  <header class="topbar">
+    <div class="wordmark">UAPB <span class="wordmark-sub">Universal Agent Progress Bar</span></div>
+    <div class="demo-badge">Concept demo &mdash; simulated run</div>
+    <nav class="top-links" aria-label="Project links">
+      <a href="https://github.com/" rel="noopener">GitHub</a>
+      <a href="PROTOCOL.md" rel="noopener">Spec</a>
+    </nav>
+  </header>
+
+  <main>
+    <p class="hero">A progress layer any AI agent can adopt: a live 0&ndash;100% bar, a countdown, and a stage ticker &mdash; reported by the agent, rendered anywhere.</p>
+
+    <section class="chat" aria-label="Mock chat window">
+      <div class="bubble user-bubble">Explain quantum tunneling simply</div>
+
+      <div class="agent-card">
+        <div class="thinking-row" aria-hidden="true">
+          <span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+          <span class="thinking-label">Thinking&hellip;</span>
+        </div>
+
+        <div class="progress-module">
+          <uapb-progress id="demoBar"></uapb-progress>
+          <div class="eta-caption">simulated estimate</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="controls" aria-label="Demo controls">
+      <button type="button" id="restartBtn" class="btn btn-primary">Restart</button>
+      <div class="presets" role="group" aria-label="Run duration">
+        <button type="button" class="btn preset" data-duration="15">15s</button>
+        <button type="button" class="btn preset" data-duration="30">30s</button>
+        <button type="button" class="btn preset" data-duration="45" aria-pressed="true">45s</button>
+        <button type="button" class="btn preset" data-duration="60">60s</button>
+      </div>
+      <button type="button" id="compactBtn" class="btn" aria-pressed="false">Compact</button>
+    </section>
+
+    <section class="works-with" aria-label="Compatible agents">
+      <p class="works-with-label">Compatible via open MCP connector &mdash; not live integrations.</p>
+      <p class="works-with-names">ChatGPT &middot; Claude &middot; Gemini &middot; DeepSeek &middot; Kimi</p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p class="honesty">No AI is connected. Values are scripted to demonstrate the proposed UX; production values arrive via the MCP server.</p>
+    <p class="trademark">ChatGPT, Claude, Gemini, DeepSeek, and Kimi are trademarks of their respective owners (OpenAI, Anthropic, Google, DeepSeek, Moonshot AI). This project is not affiliated with or endorsed by any of them.</p>
+    <p class="license-line">Universal Agent Progress Bar &mdash; MIT License. Experimental concept demo.</p>
+  </footer>
+</div>
+
+<div id="srStatus" class="visually-hidden" aria-live="polite"></div>
+
+<!--UAPB:SCRIPTS-->
+</body>
+</html>
