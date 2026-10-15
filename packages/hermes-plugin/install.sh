@@ -108,27 +108,32 @@ function findPlugins() {
   return -1;
 }
 
-// Locate the `enabled:` line inside the plugins block and describe it.
-// F1: collect ALL `enabled:` matches within the block and return the one
-// with the SMALLEST indent — the direct child of `plugins:`. First-wins on
-// ties. (A nested `enabled:` appearing earlier, e.g. plugins: -> dashboard:
-// -> enabled: [...], must never hijack the edit.)
+// Locate the `enabled:` line that is a DIRECT CHILD of the plugins block.
+// F1-residual: match only `enabled:` at the direct-child indent level (the
+// minimum indent among non-blank block lines). A nested `enabled:` with no
+// top-level sibling (e.g. plugins: -> dashboard: -> enabled: [...]) must
+// never hijack the edit — return null so `add` inserts a fresh top-level
+// list and `remove` no-ops.
 function findEnabled(pIdx) {
   const end = blockEnd(pIdx + 1);
   const pIndent = indentOf(lines[pIdx]);
-  let best = null;
+  let childIndent = null;
   for (let i = pIdx + 1; i < end; i++) {
     const l = lines[i];
     if (isBlankOrComment(l)) continue;
     if (indentOf(l) <= pIndent) break; // dedent ends the block
-    const m = l.match(/^(\s*)enabled:(.*)$/);
-    if (m) {
-      if (best === null || m[1].length < best.indent.length) {
-        best = { idx: i, indent: m[1], rest: m[2] };
-      }
-    }
+    if (childIndent === null || indentOf(l) < childIndent) childIndent = indentOf(l);
   }
-  return best;
+  if (childIndent === null) return null;
+  for (let i = pIdx + 1; i < end; i++) {
+    const l = lines[i];
+    if (isBlankOrComment(l)) continue;
+    if (indentOf(l) <= pIndent) break;
+    if (indentOf(l) !== childIndent) continue;
+    const m = l.match(/^(\s*)enabled:(.*)$/);
+    if (m) return { idx: i, indent: m[1], rest: m[2] };
+  }
+  return null;
 }
 
 function listItems(e) {

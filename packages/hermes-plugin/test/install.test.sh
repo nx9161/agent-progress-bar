@@ -6,6 +6,8 @@
 # never touched. Covers:
 #   F1 — nested `enabled:` before the top-level one: the installer must
 #        edit the top-level plugins.enabled list, not the nested one.
+#   F1-residual — nested-only `enabled:` (no top-level): the installer must
+#        create a fresh top-level list, leaving the nested one byte-identical.
 #   F2 — uninstall must not clobber user edits made after install
 #        (surgical removal first; backup restore only when config missing).
 #   plus: idempotent re-install, flow-style enabled, --dry-run changes nothing.
@@ -63,6 +65,40 @@ if grep -q '^    - other-plugin$' "$CONFIG"; then
   ok "pre-existing top-level entry preserved"
 else
   bad "pre-existing top-level entry lost"
+fi
+count="$(grep -c 'uapb-hermes-plugin' "$CONFIG")"
+if [ "$count" = "1" ]; then ok "exactly one plugin entry"; else bad "plugin entry count = $count"; fi
+
+# --- F1-residual: nested-only enabled:, no top-level one ------------------
+echo "[F1-residual] nested-only enabled: — fresh top-level list created, nested byte-identical"
+new_home
+mkdir -p "$FAKEHOME/.hermes"
+cat > "$CONFIG" <<'YAML'
+model: test-model
+plugins:
+  dashboard:
+    enabled: [other-dashboard-plugin]
+gateway:
+  port: 1234
+YAML
+nested_before="$(grep '^    enabled: \[other-dashboard-plugin\]$' "$CONFIG")"
+run_install
+
+if grep -q '^    enabled: \[other-dashboard-plugin\]$' "$CONFIG"; then
+  ok "nested dashboard.enabled left untouched"
+else
+  bad "nested dashboard.enabled was modified:"; grep -n "other-dashboard-plugin" "$CONFIG" || true
+fi
+nested_after="$(grep '^    enabled: \[other-dashboard-plugin\]$' "$CONFIG")"
+if [ "$nested_before" = "$nested_after" ]; then
+  ok "nested list byte-identical"
+else
+  bad "nested list changed: [$nested_before] -> [$nested_after]"
+fi
+if grep -q '^  enabled:$' "$CONFIG" && grep -q '^    - uapb-hermes-plugin$' "$CONFIG"; then
+  ok "fresh top-level enabled list created with the plugin"
+else
+  bad "no fresh top-level enabled list:"; cat "$CONFIG"
 fi
 count="$(grep -c 'uapb-hermes-plugin' "$CONFIG")"
 if [ "$count" = "1" ]; then ok "exactly one plugin entry"; else bad "plugin entry count = $count"; fi
