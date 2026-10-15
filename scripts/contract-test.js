@@ -28,7 +28,7 @@
 // the store, and the strict ZodObjects themselves reject unknown keys.
 
 import { spawn, execFileSync } from "node:child_process";
-import { readFileSync, rmSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -261,11 +261,10 @@ ok("mini-validator rejects 11 malformed events (negative checks)");
 
 let child = null;
 function cleanup() {
+  // Kill the spawned server. dist/ is intentionally left in place: the test
+  // builds it at startup, and later CI steps (inspector smoke test) need it.
   try {
     if (child && child.exitCode === null) child.kill("SIGKILL");
-  } catch { /* ignore */ }
-  try {
-    rmSync(join(SERVER_DIR, "dist"), { recursive: true, force: true });
   } catch { /* ignore */ }
 }
 process.on("exit", cleanup);
