@@ -1,0 +1,1108 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- UAPB concept demo — SIMULATED RUN. No AI is connected.
+     This is the build source. scripts/build-demo.js inlines the CSS/JS
+     and injects the CSP meta (with script+style hashes) into dist/index.html. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Universal Agent Progress Bar — Concept Demo</title>
+<meta name="description" content="Concept demo of an open, agent-agnostic progress layer: a live 0-100% progress bar with countdown that any AI agent can report through. Simulated run — no AI is connected.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-CZiwGGBSyQxBJCKqOjOHb78KLYIApVvmBO2BNWzYslM='; style-src 'sha256-xrSZiOF7+osLJUFeAkYSN3EkLErTAeq9FZ26cs+js+8='; object-src 'none'; base-uri 'self'; frame-ancestors 'none'">
+<style>
+/* SPDX-License-Identifier: MIT */
+/* UAPB concept demo styles. Dark tokens per build spec §6. */
+
+:root {
+  --uapb-bg: #0B0E14;
+  --uapb-surface: #141A23;
+  --uapb-border: #26303D;
+  --uapb-text: #E9EEF5;
+  --uapb-muted: #93A0B4;
+  --uapb-track: #232C3A;
+  --uapb-fill: #E9EEF5;
+  --uapb-warn: #F5A524;
+  --uapb-done: #34D399;
+  --uapb-error: #F87171;
+  --uapb-radius: 10px;
+  --uapb-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --uapb-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --uapb-font: var(--uapb-sans);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--uapb-bg);
+  color: var(--uapb-text);
+  font-family: var(--uapb-font);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+/* ---- top bar ---- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--uapb-border);
+}
+
+.wordmark {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.wordmark-sub {
+  font-weight: 400;
+  color: var(--uapb-muted);
+  font-size: 0.85em;
+}
+
+.demo-badge {
+  margin: 0 auto;
+  padding: 6px 14px;
+  border: 1px solid var(--uapb-border);
+  color: var(--uapb-muted);
+  border-radius: 999px;
+  font-size: 0.8em;
+  white-space: nowrap;
+}
+
+.top-links {
+  display: flex;
+  gap: 16px;
+}
+
+.top-links a {
+  color: var(--uapb-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ---- hero ---- */
+.hero {
+  font-size: 1.375em;
+  font-weight: 650;
+  color: var(--uapb-text);
+  margin: 28px 0;
+  max-width: 60ch;
+}
+
+/* ---- how it works ---- */
+.how-it-works {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 0 0 32px;
+  padding: 20px;
+  background: var(--uapb-surface);
+  border: 1px solid var(--uapb-border);
+  border-radius: var(--uapb-radius);
+}
+
+.how-step h2 {
+  font-size: 1em;
+  margin: 0 0 6px;
+  font-weight: 650;
+}
+
+.how-step p {
+  margin: 0;
+  font-size: 0.85em;
+  color: var(--uapb-muted);
+}
+
+.how-num {
+  display: block;
+  font-family: var(--uapb-mono);
+  font-size: 0.8em;
+  color: var(--uapb-muted);
+  margin-bottom: 8px;
+  letter-spacing: 0.08em;
+}
+
+/* ---- mock chat ---- */
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bubble {
+  max-width: 75%;
+  padding: 12px 16px;
+  border-radius: var(--uapb-radius);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.user-bubble {
+  align-self: flex-end;
+  background: #1E2A3B;
+  border: 1px solid var(--uapb-border);
+}
+
+.agent-card {
+  align-self: flex-start;
+  width: 100%;
+  background: var(--uapb-surface);
+  border: 1px solid var(--uapb-border);
+  border-radius: var(--uapb-radius);
+  padding: 16px;
+}
+
+.thinking-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  color: var(--uapb-muted);
+}
+
+.dots { display: inline-flex; gap: 5px; }
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--uapb-muted);
+  animation: uapb-shimmer 1.2s infinite ease-in-out;
+}
+
+.dot:nth-child(2) { animation-delay: 0.15s; }
+.dot:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes uapb-shimmer {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
+.progress-module uapb-progress { display: block; }
+
+.eta-caption {
+  margin-top: 6px;
+  font-size: 0.75em;
+  font-family: var(--uapb-mono);
+  color: var(--uapb-muted);
+  text-align: right;
+}
+
+/* ---- controls ---- */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+
+.btn {
+  font-family: var(--uapb-font);
+  font-size: 0.95em;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 10px 20px;
+  border-radius: var(--uapb-radius);
+  border: 1px solid var(--uapb-border);
+  background: var(--uapb-surface);
+  color: var(--uapb-text);
+  cursor: pointer;
+}
+
+.btn:hover { border-color: var(--uapb-muted); }
+
+.btn-primary {
+  background: var(--uapb-text);
+  border: none;
+  color: #0B0E14;
+  font-weight: 700;
+}
+
+.btn-primary:hover { background: #FFFFFF; }
+
+.presets { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.btn[aria-pressed="true"] {
+  border-color: var(--uapb-done);
+  color: var(--uapb-done);
+}
+
+.btn-primary[aria-pressed="true"] {
+  border: none;
+  color: #0B0E14;
+}
+
+a:focus-visible, button:focus-visible {
+  outline: 2px solid var(--uapb-done);
+  outline-offset: 3px;
+}
+
+/* ---- preview states ---- */
+.preview-states {
+  margin-top: 24px;
+}
+
+.preview-states-label {
+  font-size: 0.85em;
+  color: var(--uapb-muted);
+  margin: 0 0 10px;
+}
+
+.sim-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 10px;
+  border: 1px solid var(--uapb-border);
+  border-radius: 999px;
+  font-size: 0.8em;
+  color: var(--uapb-muted);
+}
+
+.preview-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ---- noscript ---- */
+.noscript-box {
+  margin-top: 24px;
+  padding: 16px;
+  background: var(--uapb-surface);
+  border: 1px solid var(--uapb-border);
+  border-radius: var(--uapb-radius);
+  color: var(--uapb-text);
+}
+
+.noscript-box p { margin: 0 0 8px; }
+.noscript-box p:last-child { margin-bottom: 0; }
+
+.noscript-honesty {
+  font-size: 0.85em;
+  color: var(--uapb-muted);
+}
+
+/* ---- works-with strip ---- */
+.works-with {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--uapb-border);
+}
+
+.works-with-label {
+  font-size: 0.8em;
+  color: var(--uapb-muted);
+  margin: 0 0 8px;
+}
+
+.works-with-names {
+  margin: 0;
+  font-size: 1em;
+  letter-spacing: 0.02em;
+}
+
+/* ---- footer ---- */
+.footer {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--uapb-border);
+  font-size: 0.8em;
+  color: var(--uapb-muted);
+}
+
+.footer p { margin: 0 0 10px; }
+
+/* ---- screen-reader only ---- */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* ---- responsive ---- */
+@media (max-width: 480px) {
+  .page { padding: 16px 12px 40px; }
+  .demo-badge { margin: 0; }
+  .bubble { max-width: 90%; }
+  .how-it-works { grid-template-columns: 1fr; }
+}
+
+/* ---- reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  .dot { animation: none; opacity: 0.8; }
+  * { transition: none !important; }
+}
+
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="topbar">
+    <div class="wordmark">UAPB <span class="wordmark-sub">Universal Agent Progress Bar</span></div>
+    <div class="demo-badge">Concept demo &mdash; simulated run</div>
+    <nav class="top-links" aria-label="Project links">
+      <a id="navGithub" href="https://github.com/nx9161/agent-progress-bar" rel="noopener">GitHub</a>
+      <a id="navSpec" href="https://raw.githubusercontent.com/nx9161/agent-progress-bar/main/PROTOCOL.md" rel="noopener">Spec</a>
+    </nav>
+  </header>
+
+  <main>
+    <p class="hero">A progress layer any AI agent can adopt: a live 0&ndash;100% bar, a countdown, and a stage ticker &mdash; reported by the agent, rendered anywhere.</p>
+
+    <section class="how-it-works" aria-label="How it works">
+      <div class="how-step">
+        <span class="how-num">01</span>
+        <h2>Agent reports</h2>
+        <p>Any agent sends percent, ETA, and stage through the MCP connector.</p>
+      </div>
+      <div class="how-step">
+        <span class="how-num">02</span>
+        <h2>Layer renders</h2>
+        <p>The module paints a live bar, countdown, and stage ticker wherever it&rsquo;s embedded.</p>
+      </div>
+      <div class="how-step">
+        <span class="how-num">03</span>
+        <h2>You watch</h2>
+        <p>This demo simulates it. Embed the widget in your own agent UI.</p>
+      </div>
+    </section>
+
+    <section class="chat" aria-label="Mock chat window">
+      <div class="bubble user-bubble">Explain quantum tunneling simply</div>
+
+      <div class="agent-card">
+        <div class="thinking-row" aria-hidden="true">
+          <span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+          <span class="thinking-label">Thinking&hellip;</span>
+        </div>
+
+        <div class="progress-module">
+          <uapb-progress id="demoBar"></uapb-progress>
+          <div class="eta-caption">simulated estimate</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="controls" aria-label="Demo controls">
+      <button type="button" id="restartBtn" class="btn btn-primary">Restart</button>
+      <div class="presets" role="group" aria-label="Run duration">
+        <button type="button" class="btn preset" data-duration="15">15s</button>
+        <button type="button" class="btn preset" data-duration="30">30s</button>
+        <button type="button" class="btn preset" data-duration="45" aria-pressed="true">45s</button>
+        <button type="button" class="btn preset" data-duration="60">60s</button>
+      </div>
+      <button type="button" id="compactBtn" class="btn" aria-pressed="false">Compact</button>
+    </section>
+
+    <noscript>
+      <div class="noscript-box">
+        <p>This demo needs JavaScript to run its simulated progress bar.</p>
+        <p class="noscript-honesty">Concept demo &mdash; simulated run; no AI is connected. We cannot modify any third-party client&rsquo;s UI &mdash; this is an open layer agent builders adopt voluntarily, not an integration into any chat app.</p>
+      </div>
+    </noscript>
+
+    <section class="preview-states" aria-label="Preview widget states">
+      <p class="preview-states-label">Preview states <span class="sim-tag">simulated previews</span></p>
+      <div class="preview-buttons" role="group" aria-label="Simulated widget states">
+        <button type="button" class="btn preview-state" data-state="running">Running</button>
+        <button type="button" class="btn preview-state" data-state="estimating">Estimating</button>
+        <button type="button" class="btn preview-state" data-state="paused">Paused</button>
+        <button type="button" class="btn preview-state" data-state="error">Error</button>
+        <button type="button" class="btn preview-state" data-state="done">Done</button>
+      </div>
+    </section>
+
+    <section class="works-with" aria-label="Compatible agents">
+      <p class="works-with-label">Compatible via open MCP connector &mdash; not live integrations.</p>
+      <p class="works-with-names">ChatGPT &middot; Claude &middot; Gemini &middot; DeepSeek &middot; Kimi</p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p class="honesty">No AI is connected. Values are scripted to demonstrate the proposed UX; production values arrive via the MCP server.</p>
+    <p class="trademark">ChatGPT, Claude, Gemini, DeepSeek, and Kimi are trademarks of their respective owners (OpenAI, Anthropic, Google, DeepSeek, Moonshot AI). This project is not affiliated with or endorsed by any of them.</p>
+    <p class="license-line">Universal Agent Progress Bar &mdash; MIT License. Experimental concept demo.</p>
+  </footer>
+</div>
+
+<div id="srStatus" class="visually-hidden" aria-live="polite"></div>
+
+<script>
+/* SPDX-License-Identifier: MIT */
+/* UAPB core: timeline math, easing, countdown formatting, stage presets.
+ * Zero DOM. No import/export — everything lives under window.UAPB. */
+(function (global) {
+  "use strict";
+
+  /** Locked stage labels for the concept demo timeline. */
+  var STAGES = [
+    "Reading context",
+    "Searching memory",
+    "Reasoning",
+    "Drafting reply",
+    "Done",
+  ];
+
+  /** Time weights of the first four stages (sum = 1). "Done" snaps to 100. */
+  var WEIGHTS = [0.18, 0.22, 0.38, 0.17];
+
+  /** Fraction of each stage slice spent moving (eased) vs dwelling (flat). */
+  var MOVE_FRACTION = 0.7;
+
+  function easeInOutCubic(t) {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  function clampPercent(p) {
+    if (typeof p !== "number" || isNaN(p)) return 0;
+    return Math.min(100, Math.max(0, p));
+  }
+
+  /**
+   * Format a millisecond countdown as m:ss, rounding UP so the display
+   * hits exactly 0:00 at termination (Math.ceil(remainingMs/1000)).
+   */
+  function formatCountdown(ms) {
+    var totalSeconds = Math.ceil(Math.max(0, ms) / 1000);
+    var m = Math.floor(totalSeconds / 60);
+    var s = totalSeconds % 60;
+    return m + ":" + (s < 10 ? "0" + s : s);
+  }
+
+  /**
+   * Build a keyframed timeline for totalMs.
+   * Each stage: an eased move segment (70%) + a flat dwell segment (30%)
+   * at the stage boundary. opts.linear disables easing (reduced motion).
+   * Returns { totalMs, segments: [{t0,t1,p0,p1,eased,stage}] }.
+   */
+  function createTimeline(totalMs, opts) {
+    var linear = !!(opts && opts.linear);
+    var segments = [];
+    var t = 0;
+    var ends = [];
+    var acc = 0;
+    for (var i = 0; i < WEIGHTS.length; i++) {
+      acc += WEIGHTS[i] * 100;
+      ends.push(i === WEIGHTS.length - 1 ? 97 : acc);
+    }
+    var p = 0;
+    for (var s = 0; s < WEIGHTS.length; s++) {
+      var sliceMs = totalMs * WEIGHTS[s];
+      var moveMs = sliceMs * MOVE_FRACTION;
+      var p1 = ends[s];
+      segments.push({
+        t0: t,
+        t1: t + moveMs,
+        p0: p,
+        p1: p1,
+        eased: !linear,
+        stage: STAGES[s],
+      });
+      segments.push({
+        t0: t + moveMs,
+        t1: t + sliceMs,
+        p0: p1,
+        p1: p1,
+        eased: false,
+        stage: STAGES[s],
+      });
+      t += sliceMs;
+      p = p1;
+    }
+    return { totalMs: totalMs, segments: segments };
+  }
+
+  /**
+   * Sample the timeline at elapsedMs.
+   * Returns { percent, stage, done }. done=true exactly at/after totalMs.
+   */
+  function sampleTimeline(timeline, elapsedMs) {
+    var segs = timeline.segments;
+    if (elapsedMs >= timeline.totalMs) {
+      return { percent: 100, stage: "Done", done: true };
+    }
+    if (elapsedMs <= 0 || segs.length === 0) {
+      return { percent: 0, stage: STAGES[0], done: false };
+    }
+    for (var i = 0; i < segs.length; i++) {
+      var s = segs[i];
+      if (elapsedMs <= s.t1 || i === segs.length - 1) {
+        var p = s.p0;
+        if (s.eased && s.t1 > s.t0) {
+          var k = (elapsedMs - s.t0) / (s.t1 - s.t0);
+          k = Math.min(1, Math.max(0, k));
+          p = s.p0 + (s.p1 - s.p0) * easeInOutCubic(k);
+        }
+        return { percent: clampPercent(p), stage: s.stage, done: false };
+      }
+    }
+    return { percent: 100, stage: "Done", done: true };
+  }
+
+  global.UAPB = {
+    STAGES: STAGES,
+    WEIGHTS: WEIGHTS,
+    MOVE_FRACTION: MOVE_FRACTION,
+    easeInOutCubic: easeInOutCubic,
+    clampPercent: clampPercent,
+    formatCountdown: formatCountdown,
+    createTimeline: createTimeline,
+    sampleTimeline: sampleTimeline,
+  };
+
+  /* v1 seam — ProgressSource adapter interface (documented, not implemented).
+   * A ProgressSource is { start(sink), stop() } where sink is
+   * { setProgress({ percent, etaSeconds, stage }), finish() }.
+   * Adapters: demo (simulated, disposable), callback, sse.
+   * The demo feed (packages/web/demo.js) is one adapter: it is DELETED,
+   * not refactored, in v1. */
+})(typeof window !== "undefined" ? window : this);
+
+;
+/* SPDX-License-Identifier: MIT */
+/* <uapb-progress> custom element — the canonical embeddable widget.
+ * Timer-free by design: the host pushes state via attributes or
+ * setProgress(); the element only renders. Shadow DOM. textContent only.
+ * Status-aware: started | running | paused | error | done.
+ * Psylocke art direction: monochrome dark instrument panel — solid fill,
+ * sans body / mono numerals split, no gradients. */
+(function () {
+  "use strict";
+
+  var CSS = [
+    ":host{display:block;color-scheme:dark;font-family:var(--uapb-font,-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,sans-serif);color:var(--uapb-text,#E9EEF5);}",
+    ".uapb{width:100%;}",
+    ".uapb.is-paused{filter:grayscale(1);}",
+    ".uapb-row{display:flex;align-items:center;gap:12px;}",
+    ".uapb-track{flex:1;min-width:0;height:10px;position:relative;background:var(--uapb-track,#232C3A);",
+    "border:1px solid var(--uapb-border,#26303D);border-radius:var(--uapb-radius,8px);overflow:hidden;}",
+    ".uapb-fill{height:100%;width:100%;transform-origin:left center;transform:scaleX(0);",
+    "background:var(--uapb-fill,#E9EEF5);border-radius:inherit;}",
+    ".uapb-fill.is-done{background:var(--uapb-done,#34D399);}",
+    ".uapb-sheen{position:absolute;inset:0;transform:translateX(-100%);pointer-events:none;display:none;",
+    "background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);}",
+    ".uapb-track.is-estimating .uapb-sheen{display:block;animation:uapb-sheen-sweep 2.4s linear infinite;}",
+    "@keyframes uapb-sheen-sweep{to{transform:translateX(100%);}}",
+    ".uapb-pct,.uapb-eta{font-family:var(--uapb-mono,ui-monospace,SFMono-Regular,Menlo,monospace);}",
+    ".uapb-pct{font-variant-numeric:tabular-nums;font-weight:600;min-width:3.5ch;text-align:right;}",
+    ".uapb-meta{display:flex;justify-content:space-between;gap:12px;margin-top:8px;",
+    "font-size:0.85em;color:var(--uapb-muted,#93A0B4);}",
+    ".uapb-stage{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
+    ".uapb.is-error .uapb-stage{color:var(--uapb-error,#F87171);}",
+    ".uapb-eta{font-variant-numeric:tabular-nums;white-space:nowrap;}",
+    ":host([compact]) .uapb-track{height:8px;}",
+    ":host([compact]) .uapb-meta{display:none;}",
+    "@media (prefers-reduced-motion:reduce){.uapb-fill{transition:none !important;}",
+    ".uapb-sheen{display:none !important;animation:none !important;}}",
+  ].join("\n");
+
+  var STATUSES = ["started", "running", "paused", "error", "done"];
+  var DEFAULT_LABEL = "Agent progress";
+
+  function toNumber(v, fallback) {
+    var n = Number(v);
+    return typeof n === "number" && !isNaN(n) ? n : fallback;
+  }
+
+  function clamp01(x) {
+    return Math.min(1, Math.max(0, x));
+  }
+
+  function validStatus(s) {
+    return STATUSES.indexOf(s) !== -1 ? s : "running";
+  }
+
+  function isFiniteNumber(v) {
+    return typeof v === "number" && Number.isFinite(v);
+  }
+
+  class UAPBProgress extends HTMLElement {
+    static get observedAttributes() {
+      return ["percent", "eta", "stage", "status", "label", "compact"];
+    }
+
+    constructor() {
+      super();
+      this._completed = false;
+      this._lastWhole = -1;
+      this._percent = 0;
+      this._etaSeconds = null;
+      this._stage = "";
+      this._status = "running";
+      this._message = "";
+      this._label = null;
+      var shadow = this.attachShadow({ mode: "open" });
+
+      var style = document.createElement("style");
+      style.textContent = CSS;
+      shadow.appendChild(style);
+
+      var root = document.createElement("div");
+      root.setAttribute("class", "uapb");
+
+      var row = document.createElement("div");
+      row.setAttribute("class", "uapb-row");
+
+      var track = document.createElement("div");
+      track.setAttribute("class", "uapb-track");
+      track.setAttribute("role", "progressbar");
+      track.setAttribute("aria-valuemin", "0");
+      track.setAttribute("aria-valuemax", "100");
+      track.setAttribute("aria-valuenow", "0");
+      track.setAttribute("aria-label", DEFAULT_LABEL);
+
+      var fill = document.createElement("div");
+      fill.setAttribute("class", "uapb-fill");
+      track.appendChild(fill);
+
+      var sheen = document.createElement("div");
+      sheen.setAttribute("class", "uapb-sheen");
+      sheen.setAttribute("aria-hidden", "true");
+      track.appendChild(sheen);
+
+      var pct = document.createElement("span");
+      pct.setAttribute("class", "uapb-pct");
+      pct.textContent = "0%";
+
+      row.appendChild(track);
+      row.appendChild(pct);
+
+      var meta = document.createElement("div");
+      meta.setAttribute("class", "uapb-meta");
+
+      var stage = document.createElement("span");
+      stage.setAttribute("class", "uapb-stage");
+      stage.setAttribute("aria-live", "polite");
+
+      var eta = document.createElement("span");
+      eta.setAttribute("class", "uapb-eta");
+      eta.setAttribute("aria-hidden", "true");
+
+      meta.appendChild(stage);
+      meta.appendChild(eta);
+
+      root.appendChild(row);
+      root.appendChild(meta);
+      shadow.appendChild(root);
+
+      this._root = root;
+      this._els = { track: track, fill: fill, pct: pct, stage: stage, eta: eta };
+      this._render();
+    }
+
+    attributeChangedCallback(name, _oldVal, _newVal) {
+      this._render();
+    }
+
+    /**
+     * Push new state. Timer-free: call whenever the source has an update.
+     * setProgress({percent, etaSeconds, stage, status, message, durationMs})
+     *   status: "started" | "running" | "paused" | "error" | "done"
+     *           (default "running"; invalid values fall back silently).
+     *   message: short note (<=280 chars) shown as the stage in error state.
+     *   durationMs: run duration, carried on the uapb-complete event detail.
+     * Fires a bubbling, composed `uapb-complete` event exactly once per
+     * run when percent reaches 100, with detail {durationMs} when the
+     * duration is a finite number, otherwise detail {}.
+     */
+    setProgress(opts) {
+      var o = opts || {};
+      var p = clamp01(toNumber(o.percent, 0) / 100);
+      var eta = o.etaSeconds === null || o.etaSeconds === undefined ? null : toNumber(o.etaSeconds, null);
+      var stage = typeof o.stage === "string" ? o.stage : "";
+      var status = validStatus(o.status);
+      var message = typeof o.message === "string" ? o.message.slice(0, 280) : "";
+      var durationMs = isFiniteNumber(o.durationMs) ? o.durationMs : null;
+      var changed = false;
+      if (p !== this._percent) {
+        this._percent = p;
+        changed = true;
+      }
+      if (eta !== this._etaSeconds) {
+        this._etaSeconds = eta;
+        changed = true;
+      }
+      if (stage !== this._stage) {
+        this._stage = stage;
+        changed = true;
+      }
+      if (status !== this._status) {
+        this._status = status;
+        changed = true;
+      }
+      if (message !== this._message) {
+        this._message = message;
+        changed = true;
+      }
+      if (changed) this._render();
+      if (p >= 1 && !this._completed) {
+        this._completed = true;
+        this.dispatchEvent(
+          new CustomEvent("uapb-complete", {
+            bubbles: true,
+            composed: true,
+            detail: durationMs === null ? {} : { durationMs: durationMs },
+          })
+        );
+      }
+      if (p < 1) this._completed = false;
+      return this;
+    }
+
+    _syncFromAttributes() {
+      // Attribute values are percent-scale (0-100); this._percent is the
+      // fractional mirror used by setProgress. The fallback keeps the
+      // fraction as-is so programmatic updates survive re-render.
+      var p = this.hasAttribute("percent")
+        ? toNumber(this.getAttribute("percent"), 0) / 100
+        : typeof this._percent === "number"
+          ? this._percent
+          : 0;
+      var eta = this.hasAttribute("eta") ? toNumber(this.getAttribute("eta"), null) : this._etaSeconds;
+      var stage = this.hasAttribute("stage") ? String(this.getAttribute("stage")) : this._stage || "";
+      var status = this.hasAttribute("status") ? validStatus(this.getAttribute("status")) : this._status || "running";
+      var label = this.hasAttribute("label") ? String(this.getAttribute("label")) : this._label;
+      this._percent = clamp01(p);
+      this._etaSeconds = eta === null || eta === undefined || isNaN(eta) ? null : eta;
+      this._stage = stage;
+      this._status = status;
+      this._label = label;
+    }
+
+    _render() {
+      this._syncFromAttributes();
+      var status = this._status || "running";
+      var whole = Math.round(this._percent * 100);
+      var els = this._els;
+
+      // Status classes on the root: paused goes grayscale, error recolors.
+      this._root.classList.toggle("is-paused", status === "paused");
+      this._root.classList.toggle("is-error", status === "error");
+
+      // Estimating = no ETA while still active. Honesty rule: show
+      // "estimating…", never an invented number. Sheen sweeps the track.
+      var estimating =
+        (this._etaSeconds === null || this._etaSeconds === undefined) &&
+        (status === "running" || status === "started");
+      els.track.classList.toggle("is-estimating", estimating);
+
+      // Bar moves via transform only (compositor-friendly).
+      els.fill.style.transform = "scaleX(" + this._percent.toFixed(4) + ")";
+      if (whole >= 100) {
+        els.fill.classList.add("is-done");
+      } else {
+        els.fill.classList.remove("is-done");
+      }
+      // Text nodes update only on change.
+      if (whole !== this._lastWhole) {
+        this._lastWhole = whole;
+        els.pct.textContent = whole + "%";
+        els.track.setAttribute("aria-valuenow", String(whole));
+      }
+
+      // Stage text per status: paused prefixes, error shows the message.
+      var rawStage = this._stage || "";
+      var stageText;
+      if (status === "paused") {
+        stageText = rawStage ? "Paused — " + rawStage : "Paused";
+      } else if (status === "error") {
+        stageText = this._message || "Something went wrong";
+      } else {
+        stageText = rawStage;
+      }
+      if (els.stage.textContent !== stageText) {
+        els.stage.textContent = stageText;
+      }
+      els.stage.setAttribute("title", stageText);
+      if (status === "error") {
+        els.stage.setAttribute("role", "alert");
+      } else {
+        els.stage.removeAttribute("role");
+      }
+
+      // ETA caption: "paused" / "estimating…" / countdown / blank.
+      var etaText;
+      if (status === "paused") {
+        etaText = "paused";
+      } else if (estimating) {
+        etaText = "estimating…";
+      } else if (this._etaSeconds === null || this._etaSeconds === undefined) {
+        etaText = "";
+      } else {
+        etaText = window.UAPB
+          ? window.UAPB.formatCountdown(this._etaSeconds * 1000)
+          : String(this._etaSeconds);
+      }
+      if (els.eta.textContent !== etaText) {
+        els.eta.textContent = etaText;
+      }
+
+      // Accessible label for the progressbar role.
+      var label = this._label || DEFAULT_LABEL;
+      if (els.track.getAttribute("aria-label") !== label) {
+        els.track.setAttribute("aria-label", label);
+      }
+    }
+  }
+
+  if (!customElements.get("uapb-progress")) {
+    customElements.define("uapb-progress", UAPBProgress);
+  }
+})();
+
+;
+/* SPDX-License-Identifier: MIT */
+/* Concept demo driver: mock chat shell + SimulatedSource (rAF).
+ * DISPOSABLE in v1 — the demo feed is one ProgressSource adapter,
+ * deleted (not refactored) when live sources land. No AI is connected;
+ * every value here is scripted to demonstrate the proposed UX. */
+(function () {
+  "use strict";
+
+  if (!window.UAPB) throw new Error("uapb-core.js must precede demo.js");
+
+  var DEFAULT_DURATION_S = 45;
+  var ALLOWED_DURATIONS = { 15: true, 30: true, 45: true, 60: true };
+  var MILESTONES = [25, 50, 75, 100];
+
+  var bar = document.getElementById("demoBar");
+  var restartBtn = document.getElementById("restartBtn");
+  var compactBtn = document.getElementById("compactBtn");
+  var srStatus = document.getElementById("srStatus");
+  var presetBtns = Array.prototype.slice.call(
+    document.querySelectorAll(".preset")
+  );
+
+  var reducedMotion =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function readParams() {
+    // Allowlisted-or-absent: only known keys with known values take effect.
+    var out = { durationS: DEFAULT_DURATION_S, compact: false };
+    try {
+      var q = new URLSearchParams(window.location.search);
+      var d = q.get("duration");
+      if (d !== null && ALLOWED_DURATIONS[d]) out.durationS = Number(d);
+      var c = q.get("compact");
+      if (c === "1") out.compact = true;
+    } catch (e) {
+      /* URLSearchParams unavailable — fall back to defaults */
+    }
+    return out;
+  }
+
+  var params = readParams();
+  var durationMs = params.durationS * 1000;
+
+  /**
+   * SimulatedSource — one clock (performance.now()), rAF-driven.
+   * Samples a keyframed timeline; ends exactly 100% / 0:00 / "Done".
+   */
+  function SimulatedSource(el, totalMs, linear) {
+    this.el = el;
+    this.totalMs = totalMs;
+    this.timeline = window.UAPB.createTimeline(totalMs, { linear: linear });
+    this.rafId = 0;
+    this.startStamp = 0;
+    this.pausedTotal = 0;
+    this.pauseStart = 0;
+    this.announced = {};
+    this.running = false;
+    var self = this;
+    this.onVisibility = function () {
+      if (document.hidden) {
+        if (self.running && self.pauseStart === 0) {
+          self.pauseStart = performance.now();
+        }
+      } else if (self.pauseStart !== 0) {
+        self.pausedTotal += performance.now() - self.pauseStart;
+        self.pauseStart = 0;
+      }
+    };
+  }
+
+  SimulatedSource.prototype.start = function () {
+    this.stop();
+    this.startStamp = performance.now();
+    this.pausedTotal = 0;
+    this.pauseStart = 0;
+    this.announced = {};
+    this.running = true;
+    document.addEventListener("visibilitychange", this.onVisibility);
+    this.el.setProgress({ percent: 0, etaSeconds: this.totalMs / 1000, stage: window.UAPB.STAGES[0] });
+    this.tick();
+  };
+
+  SimulatedSource.prototype.stop = function () {
+    this.running = false;
+    if (this.rafId) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = 0;
+    }
+    document.removeEventListener("visibilitychange", this.onVisibility);
+  };
+
+  SimulatedSource.prototype.finish = function () {
+    // Termination clamps: exactly 100% / 0:00 / "Done".
+    // durationMs carries real elapsed run time on the uapb-complete event.
+    this.el.setProgress({
+      percent: 100,
+      etaSeconds: 0,
+      stage: "Done",
+      status: "done",
+      durationMs: Math.round(performance.now() - this.startStamp - this.pausedTotal),
+    });
+    this.announce(100);
+    this.stop();
+  };
+
+  SimulatedSource.prototype.announce = function (pct) {
+    if (this.announced[pct]) return;
+    this.announced[pct] = true;
+    srStatus.textContent =
+      pct >= 100 ? "Progress complete." : "Progress " + pct + " percent.";
+  };
+
+  SimulatedSource.prototype.tick = function () {
+    if (!this.running) return;
+    var self = this;
+    this.rafId = requestAnimationFrame(function () {
+      self.frame();
+    });
+  };
+
+  SimulatedSource.prototype.frame = function () {
+    if (!this.running) return;
+    var now = performance.now();
+    var elapsed = now - this.startStamp - this.pausedTotal;
+    if (elapsed >= this.totalMs) {
+      this.finish();
+      return;
+    }
+    var sample = window.UAPB.sampleTimeline(this.timeline, Math.max(0, elapsed));
+    var remainingMs = Math.max(0, this.totalMs - elapsed);
+    // Math.ceil(remainingMs/1000) inside formatCountdown hits 0:00 exactly.
+    this.el.setProgress({
+      percent: sample.percent,
+      etaSeconds: remainingMs / 1000,
+      stage: sample.stage,
+    });
+    var whole = Math.round(sample.percent);
+    for (var i = 0; i < MILESTONES.length; i++) {
+      if (whole >= MILESTONES[i]) this.announce(MILESTONES[i]);
+    }
+    this.tick();
+  };
+
+  // Live project links (nav anchors carry these ids in index.html).
+  var LINKS = {
+    github: "https://github.com/nx9161/agent-progress-bar",
+    spec: "https://raw.githubusercontent.com/nx9161/agent-progress-bar/main/PROTOCOL.md",
+  };
+  var navGithub = document.getElementById("navGithub");
+  var navSpec = document.getElementById("navSpec");
+  if (navGithub) navGithub.setAttribute("href", LINKS.github);
+  if (navSpec) navSpec.setAttribute("href", LINKS.spec);
+
+  // Simulated preview states — canned widget states, clearly labeled as
+  // previews in the UI. Each stops the sim, then pushes the canned values.
+  var PREVIEWS = {
+    running: { percent: 42, etaSeconds: 30, stage: "Reasoning", status: "running" },
+    estimating: { percent: 12, etaSeconds: null, stage: "Searching memory", status: "running" },
+    paused: { percent: 57, etaSeconds: 24, stage: "Reasoning", status: "paused" },
+    error: {
+      percent: 63,
+      etaSeconds: null,
+      stage: "Reasoning",
+      status: "error",
+      message: "Upstream request timed out",
+    },
+    done: { percent: 100, etaSeconds: 0, stage: "Done", status: "done" },
+  };
+  var previewBtns = Array.prototype.slice.call(
+    document.querySelectorAll(".preview-state")
+  );
+  previewBtns.forEach(function (b) {
+    b.addEventListener("click", function () {
+      var canned = PREVIEWS[b.getAttribute("data-state")];
+      if (!canned) return;
+      source.stop();
+      bar.setProgress(canned);
+    });
+  });
+
+  var source = new SimulatedSource(bar, durationMs, reducedMotion);
+
+  function setDuration(seconds) {
+    durationMs = seconds * 1000;
+    source.totalMs = durationMs;
+    source.timeline = window.UAPB.createTimeline(durationMs, { linear: reducedMotion });
+    presetBtns.forEach(function (b) {
+      var active = Number(b.getAttribute("data-duration")) === seconds;
+      b.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+    source.start();
+  }
+
+  function setCompact(on) {
+    if (on) {
+      bar.setAttribute("compact", "");
+    } else {
+      bar.removeAttribute("compact");
+    }
+    compactBtn.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+
+  restartBtn.addEventListener("click", function () {
+    source.start();
+  });
+
+  presetBtns.forEach(function (b) {
+    b.addEventListener("click", function () {
+      setDuration(Number(b.getAttribute("data-duration")));
+    });
+  });
+
+  compactBtn.addEventListener("click", function () {
+    setCompact(compactBtn.getAttribute("aria-pressed") !== "true");
+  });
+
+  // Init from allowlisted URL params, then auto-start.
+  presetBtns.forEach(function (b) {
+    var active = Number(b.getAttribute("data-duration")) === params.durationS;
+    b.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+  setCompact(params.compact);
+  source.start();
+})();
+
+</script>
+</body>
+</html>
