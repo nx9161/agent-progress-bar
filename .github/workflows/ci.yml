@@ -43,7 +43,7 @@ jobs:
       - name: Inspector smoke test
         run: |
           npx -y @modelcontextprotocol/inspector@2.11.0 --cli node packages/mcp-server/dist/index.js --method tools/list
-          npx -y @modelcontextprotocol/inspector@2.11.0 --cli node packages/mcp-server/dist/index.js --method tools/call --method-args '{"name":"report_progress","arguments":{"task_id":"ci:smoke","percent":42,"eta_seconds":30,"stage":"CI smoke"}}'
+          npx -y @modelcontextprotocol/inspector@2.11.0 --cli node packages/mcp-server/dist/index.js --method tools/call --tool-name report_progress --tool-arg task_id=ci:smoke --tool-arg percent=42 --tool-arg eta_seconds=30 --tool-arg stage="CI smoke"
 
       - name: Build demo page
         run: node scripts/build-demo.js
