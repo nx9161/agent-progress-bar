@@ -28,3 +28,26 @@ backport policy at v0.
   (default deny) and `sandbox="allow-scripts"` without `allow-same-origin`.
 - v0 has no auth, no persistence beyond TTL memory, and no network egress —
   keep it that way in contributions unless a reviewed design says otherwise.
+
+## Live layer scope (binding)
+
+The Phase 4 live layer (local JSONL event sink, `agent-progress dashboard`,
+`agent-progress events`, unofficial Hermes plugin) is a deliberate,
+narrowly-scoped exception to the v0 "no persistence, no network" rule. The
+following are binding:
+
+- **No data leaves the machine.** The event sink is a local file; the
+  dashboard and its SSE stream are localhost-only by design.
+- The dashboard binds `127.0.0.1` only (first free port 17421–17430) and
+  never listens on a routable address.
+- Every `/api/*` endpoint requires a bearer token minted fresh on each
+  launch (128-bit, cryptographically random). The token is printed to the
+  terminal for the launching user, is never written to disk or logged, and
+  dies with the process.
+- CORS is restricted to literal loopback hosts.
+- The event log lives in a `0700` directory as `0600` files; retention is
+  7 days, automatic. Full purge: `rm -rf ~/.agent-progress`.
+- **Threat model: single-user localhost.** No auth system, no accounts, no
+  network egress. Do not expose the dashboard beyond loopback; it is not
+  designed for multi-user or internet deployment, and contributions must
+  not add listening sockets or outbound calls without a reviewed design.

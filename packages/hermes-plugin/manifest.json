@@ -1,0 +1,1 @@
+{"description":"Unofficial community plugin. Not affiliated with Nous Research. Renders the Universal Agent Progress Bar (pixel mascot + progress bar + stage/ETA) in the Hermes chat UI, fed by self-reported progress events from the agent-progress MCP server.","entry":"plugin.js","integrity":"sha384-PLACEHOLDER","name":"uapb-hermes-plugin","slot":"chat:top","version":"0.1.0"}

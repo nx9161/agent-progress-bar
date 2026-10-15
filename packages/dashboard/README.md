@@ -1,0 +1,56 @@
+<!-- SPDX-License-Identifier: MIT -->
+
+# UAPB Live Dashboard
+
+A single-file, zero-dependency local dashboard that renders **every live agent session** in one screen — rows on hairlines, like a GitHub Actions run list. Served on localhost by `agent-progress dashboard`.
+
+## Run it
+
+```sh
+agent-progress dashboard
+```
+
+The CLI prints a URL carrying a per-run 128-bit token. Open that URL — the dashboard reads `token` from the query string and passes it (URL-encoded) on every API call. Without the token the page shows an error instead of guessing.
+
+## Honesty
+
+> Self-reported thinking — agents report their own progress; estimates move.
+
+The dashboard shows exactly what agents report. `eta_seconds: null` renders **"estimating…"** — never a fabricated number. Nothing here measures an agent's real internal state; it is the agent's own claim about itself.
+
+## The tier system
+
+A bar for a 300ms session is noise, so rows are time-tiered by session age:
+
+| Session age | Render |
+|---|---|
+| < 1s | Mascot pulse-pop + "just started" micro-label — no bar |
+| 1–5s | `<uapb-progress>` in compact mode + mono ETA |
+| > 5s | Full `<uapb-progress>`: bar + ETA + stage ticker |
+
+Every tier shares one fixed body min-height, so promoting a session never reflows the rows around it. Only active rows animate (motion budget); finished sessions collapse into **"Recently finished"**, auto-expire after 10 minutes, and each has a Dismiss button.
+
+A session with no event for 60 seconds goes **stale**: amber left border, frozen mascot, desaturated bar, and "stale — no heartbeat Ns". Frozen, not animated — that is the honest signal.
+
+## Row anatomy
+
+Status dot + pixel mascot (24px, pure-CSS box-shadow) + `agent · session` text + word-first status pill (RUNNING / PAUSED / DONE / ERROR / STALE — word first, color never the only signal) + `<uapb-progress>` + stage ticker + mono ETA. Per-agent identity: a deterministic hash of the agent name picks one of 6 accent hues, applied **only** to the mascot's antenna tip and the 2px row border. Emerald, red, and amber are reserved for done/error/stale and never used as agent accents. The stage ticker opens a newest-first history viewer (mono timestamps, capped at 25) via the History expander.
+
+## Stream
+
+- `GET /api/stream?token=<128b>&resume=<id>` — SSE; the server replays recent events on connect, then streams live. Malformed lines are dropped silently and counted in the stream-health indicator, along with `{type:"dropped"}` markers.
+- `GET /api/snapshot?token=` — latest event per task, rendered before the stream opens.
+
+If the stream is unreachable the page shows a full-page error with a Retry button.
+
+## Privacy
+
+Everything is local. The dashboard consumes the localhost SSE stream; the stream's events are appended by the MCP server to `~/.agent-progress/events-YYYY-MM-DD.jsonl` on your machine (mode `0600`, per-day rotation, 7-day retention). No data leaves the machine — the page's CSP allows `connect-src 'self'` only.
+
+## Build
+
+```sh
+node scripts/build-dashboard.js
+```
+
+Zero npm dependencies. `packages/dashboard/src/` (vanilla JS + the marker shell `index.html`) is inlined with the widget sources into `packages/dashboard/dist/index.html`; the build injects a strict CSP meta (three hashes: script, document style, widget shadow style) and then **re-reads the output and re-hashes** — any mismatch throws and the build fails.

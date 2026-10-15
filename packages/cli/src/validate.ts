@@ -110,3 +110,12 @@ export function validateInterval(raw: unknown): number {
   }
   return n;
 }
+
+export function validateLimit(raw: unknown): number {
+  if (raw === undefined || raw === null) return 20;
+  const n = typeof raw === "string" ? Number(raw) : raw;
+  if (typeof n !== "number" || !Number.isInteger(n) || n < 1 || n > 100000) {
+    throw new CliError(`--limit must be an integer >= 1 (got "${String(raw)}")`);
+  }
+  return n;
+}

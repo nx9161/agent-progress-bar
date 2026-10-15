@@ -13,3 +13,8 @@ mcp_servers:
   progress:
     command: "node"
     args: ["/PATH/TO/agent-progress-bar/packages/mcp-server/dist/index.js"]
+    # UAPB_AGENT labels this agent's records in the local event log
+    # (~/.agent-progress/events-YYYY-MM-DD.jsonl), which the dashboard
+    # reads. Primary identity source; the `hermes:` task_id prefix is
+    # the fallback.
+    env: { UAPB_AGENT: "hermes" }

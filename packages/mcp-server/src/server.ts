@@ -11,6 +11,7 @@ import {
   reportProgressShape,
 } from "./tools.js";
 import type { IProgressStore } from "./store.js";
+import { EventLog, resolveAgent } from "./event-log.js";
 
 function textResult(payload: unknown): {
   content: Array<{ type: "text"; text: string }>;
@@ -29,8 +30,15 @@ function errorResult(payload: unknown): {
  * Create the MCP server bound to a progress store.
  * Transport-blind: callers attach StdioServerTransport (index.ts) or any
  * other transport. All records produced here are JSON-serializable.
+ *
+ * opts.eventLog is the universal event substrate: when present, every
+ * successful report_progress is appended to the local JSONL log BEFORE the
+ * tool result is returned. Logging can never break the tool call.
  */
-export function createServer(store: IProgressStore): McpServer {
+export function createServer(
+  store: IProgressStore,
+  opts?: { eventLog?: EventLog }
+): McpServer {
   const server = new McpServer({
     name: "agent-progress-mcp",
     version: CONTRACT_VERSION,
@@ -70,6 +78,16 @@ export function createServer(store: IProgressStore): McpServer {
         stage: input.stage ?? "",
         message: input.message,
       });
+      // Universal event substrate: the append is synchronous, so it completes
+      // BEFORE report_progress returns. Belt-and-braces try/catch on top of
+      // EventLog's internal failure policy — logging never breaks the tool.
+      if (opts?.eventLog) {
+        try {
+          opts.eventLog.append(rec, resolveAgent(rec.task_id), rec.task_id);
+        } catch {
+          // EventLog.append already swallows write failures; unreachable in practice.
+        }
+      }
       return textResult({
         contract: CONTRACT_VERSION,
         task_id: rec.task_id,

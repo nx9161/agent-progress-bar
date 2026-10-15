@@ -5,7 +5,9 @@
 
 import { CliError } from "./mcp.js";
 import {
+  cmdDashboard,
   cmdDemo,
+  cmdEvents,
   cmdList,
   cmdReport,
   cmdStatus,
@@ -20,13 +22,17 @@ const GLOBAL_HELP = `agent-progress ${VERSION} — INTERNAL developer CLI for th
 
 Usage: agent-progress <command> [options]
 
-Commands (each maps 1:1 onto an MCP tool — the full control surface):
+Commands (report/status/tools/demo/watch map 1:1 onto an MCP tool — the full control surface):
   report   Report progress for a task            -> report_progress
   status   Show the last reported status         -> get_status
   tools    List every MCP tool with its schema
   list     Show task_ids this CLI has touched (local registry)
   demo     Run a scripted simulated progress run in this terminal
   watch    Poll a task and render a live bar until it completes
+
+Local utilities (read the ~/.agent-progress/events JSONL log; no MCP traffic):
+  dashboard  Serve the dashboard SPA + localhost SSE stream
+  events     Inspect the local event log (read-only)
 
 Global options:
   -h, --help       Show help (use "<command> --help" for command help)
@@ -95,6 +101,37 @@ Options:
   --interval <s>      Poll interval, 0.2-60s, default 1
 
 Exits when the task reports complete (or percent reaches 100).
+`,
+  dashboard: `agent-progress dashboard — serve the local progress dashboard
+
+Usage: agent-progress dashboard
+
+Serves the dashboard SPA shell plus a token-gated localhost SSE stream
+over the ~/.agent-progress/events JSONL log.
+
+  - Binds 127.0.0.1 only (hardcoded; AppSec C14). Port scan 17421-17430,
+    first free wins; the chosen URL is printed below.
+  - Per-launch 128-bit token printed to this terminal only; every /api/*
+    route (health included) requires ?token= (AppSec C1).
+  - The static SPA shell at / needs no token — it carries no data.
+  - Blocks until SIGINT/SIGTERM.
+
+Open the printed URL in your browser.
+`,
+  events: `agent-progress events — inspect the local JSONL event log (read-only)
+
+Usage: agent-progress events [--agent <name>] [--task <id>] [--limit <n>] [--file <path>]
+
+Options:
+  --agent <name>   Only events from this agent
+  --task <id>      Only events for this task_id
+  --limit <n>      Max lines, newest first, default 20
+  --file <path>    JSONL file to read (default: today's ~/.agent-progress/events log)
+
+Prints one compact line per event:
+  <timestamp> <agent> <session> <task_id> <percent>% <stage>
+
+Never writes. ("session" is not part of the protocol; "-" when absent.)
 `,
 };
 
@@ -174,6 +211,12 @@ async function main(): Promise<void> {
       break;
     case "watch":
       await cmdWatch(flags);
+      break;
+    case "dashboard":
+      await cmdDashboard();
+      break;
+    case "events":
+      await cmdEvents(flags);
       break;
     case "help":
       console.log(GLOBAL_HELP);

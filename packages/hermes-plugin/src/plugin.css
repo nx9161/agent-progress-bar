@@ -1,0 +1,309 @@
+/* SPDX-License-Identifier: MIT */
+/* uapb-hermes-plugin slot styles — chameleon theming (binding).
+ *
+ * ZERO panel chrome: no border, no background panel, no shadow on the
+ * slot root. The slot sits in Hermes's chat flow and inherits the host's
+ * look. Every color/font resolves through a --uapb-* CSS variable with a
+ * fallback to the Universal Agent Progress Bar instrument-panel tokens,
+ * so a host that defines --uapb-text etc. re-themes the slot for free.
+ *
+ * Variable mapping (see README for the full table):
+ *   --uapb-text    primary text            fallback #E9EEF5
+ *   --uapb-muted   secondary/muted text    fallback #93A0B4
+ *   --uapb-track   bar track               fallback #232C3A
+ *   --uapb-fill    bar fill + mascot body  fallback #E9EEF5
+ *   --uapb-border  hairlines               fallback #26303D
+ *   --uapb-done    done state + antenna tip fallback #34D399
+ *   --uapb-error   error text              fallback #F87171
+ *   --uapb-bg      mascot eye (contrasts fill) fallback #0B0E14
+ *   --uapb-radius  corner radius           fallback 8px
+ *   --uapb-font    host font stack         fallback system sans
+ *   --uapb-mono    mono for numerals (tabular — non-negotiable)
+ *                  fallback ui-monospace stack
+ *
+ * NOTE: the <uapb-progress> widget carries its own shadow-DOM CSS that
+ * reads the same --uapb-* variables, so host theming flows into the bar
+ * automatically.
+ */
+
+.uapb-hermes-slot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0;
+  margin: 0;
+  /* chameleon: explicitly no chrome */
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-family: var(--uapb-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  color: var(--uapb-text, #E9EEF5);
+  font-size: 13px;
+  line-height: 1.4;
+  max-width: 100%;
+}
+
+.uapb-hermes-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.uapb-hermes-body uapb-progress {
+  display: block;
+  width: 100%;
+}
+
+.uapb-hermes-stage {
+  font-size: 0.85em;
+  color: var(--uapb-muted, #93A0B4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Honesty micro-label: binding, always visible in the slot. */
+.uapb-honesty {
+  font-size: 0.75em;
+  color: var(--uapb-muted, #93A0B4);
+  margin-left: auto;
+  white-space: nowrap;
+  flex: none;
+  opacity: 0.9;
+}
+
+/* ---- setup row (no token yet) ---- */
+.uapb-hermes-setup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.85em;
+  color: var(--uapb-muted, #93A0B4);
+}
+
+.uapb-hermes-setup input {
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--uapb-text, #E9EEF5);
+  background: transparent;
+  border: 1px solid var(--uapb-border, #26303D);
+  border-radius: var(--uapb-radius, 8px);
+  padding: 4px 8px;
+  min-height: 32px;
+}
+
+.uapb-hermes-setup input.uapb-port {
+  width: 5.5ch;
+  font-family: var(--uapb-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+
+.uapb-hermes-setup input.uapb-token {
+  min-width: 200px;
+  font-family: var(--uapb-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+
+.uapb-hermes-setup button {
+  font-family: inherit;
+  font-size: inherit;
+  min-height: 32px;
+  padding: 4px 14px;
+  border-radius: var(--uapb-radius, 8px);
+  border: 1px solid var(--uapb-border, #26303D);
+  background: transparent;
+  color: var(--uapb-text, #E9EEF5);
+  cursor: pointer;
+}
+
+.uapb-hermes-setup button:hover {
+  border-color: var(--uapb-muted, #93A0B4);
+}
+
+/* ---- pixel mascot (original art), scaled to 24px ----
+ * Outer wrapper fixes the layout box at 24x31; the inner 30x38 sprite
+ * (3px pixels, copied from the UAPB demo CSS) is scaled 0.8 so the art
+ * itself is untouched. Body color is --uapb-fill so the mascot re-themes
+ * with the host; the antenna tip keeps the --uapb-done accent. */
+.uapb-mascot-scale {
+  width: 24px;
+  height: 31px;
+  flex: none;
+}
+
+.uapb-mascot {
+  position: relative;
+  width: 30px;
+  height: 38px;
+  transform: scale(0.8);
+  transform-origin: top left;
+  animation: uapb-mascot-bob 2.4s ease-in-out infinite;
+}
+
+.uapb-mascot-body {
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 3px;
+  height: 3px;
+  box-shadow:
+    6px 0px 0 var(--uapb-fill,#E9EEF5),
+    9px 0px 0 var(--uapb-fill,#E9EEF5),
+    12px 0px 0 var(--uapb-fill,#E9EEF5),
+    15px 0px 0 var(--uapb-fill,#E9EEF5),
+    18px 0px 0 var(--uapb-fill,#E9EEF5),
+    21px 0px 0 var(--uapb-fill,#E9EEF5),
+    3px 3px 0 var(--uapb-fill,#E9EEF5),
+    6px 3px 0 var(--uapb-fill,#E9EEF5),
+    9px 3px 0 var(--uapb-fill,#E9EEF5),
+    12px 3px 0 var(--uapb-fill,#E9EEF5),
+    15px 3px 0 var(--uapb-fill,#E9EEF5),
+    18px 3px 0 var(--uapb-fill,#E9EEF5),
+    21px 3px 0 var(--uapb-fill,#E9EEF5),
+    24px 3px 0 var(--uapb-fill,#E9EEF5),
+    0px 6px 0 var(--uapb-fill,#E9EEF5),
+    3px 6px 0 var(--uapb-fill,#E9EEF5),
+    6px 6px 0 var(--uapb-fill,#E9EEF5),
+    9px 6px 0 var(--uapb-fill,#E9EEF5),
+    12px 6px 0 var(--uapb-fill,#E9EEF5),
+    15px 6px 0 var(--uapb-fill,#E9EEF5),
+    18px 6px 0 var(--uapb-fill,#E9EEF5),
+    21px 6px 0 var(--uapb-fill,#E9EEF5),
+    24px 6px 0 var(--uapb-fill,#E9EEF5),
+    27px 6px 0 var(--uapb-fill,#E9EEF5),
+    0px 9px 0 var(--uapb-fill,#E9EEF5),
+    3px 9px 0 var(--uapb-fill,#E9EEF5),
+    6px 9px 0 var(--uapb-fill,#E9EEF5),
+    9px 9px 0 var(--uapb-fill,#E9EEF5),
+    12px 9px 0 var(--uapb-fill,#E9EEF5),
+    15px 9px 0 var(--uapb-fill,#E9EEF5),
+    18px 9px 0 var(--uapb-fill,#E9EEF5),
+    21px 9px 0 var(--uapb-fill,#E9EEF5),
+    24px 9px 0 var(--uapb-fill,#E9EEF5),
+    27px 9px 0 var(--uapb-fill,#E9EEF5),
+    0px 12px 0 var(--uapb-fill,#E9EEF5),
+    3px 12px 0 var(--uapb-fill,#E9EEF5),
+    6px 12px 0 var(--uapb-fill,#E9EEF5),
+    9px 12px 0 var(--uapb-fill,#E9EEF5),
+    12px 12px 0 var(--uapb-fill,#E9EEF5),
+    15px 12px 0 var(--uapb-fill,#E9EEF5),
+    18px 12px 0 var(--uapb-fill,#E9EEF5),
+    21px 12px 0 var(--uapb-fill,#E9EEF5),
+    24px 12px 0 var(--uapb-fill,#E9EEF5),
+    27px 12px 0 var(--uapb-fill,#E9EEF5),
+    0px 15px 0 var(--uapb-fill,#E9EEF5),
+    3px 15px 0 var(--uapb-fill,#E9EEF5),
+    6px 15px 0 var(--uapb-fill,#E9EEF5),
+    9px 15px 0 var(--uapb-fill,#E9EEF5),
+    12px 15px 0 var(--uapb-fill,#E9EEF5),
+    15px 15px 0 var(--uapb-fill,#E9EEF5),
+    18px 15px 0 var(--uapb-fill,#E9EEF5),
+    21px 15px 0 var(--uapb-fill,#E9EEF5),
+    24px 15px 0 var(--uapb-fill,#E9EEF5),
+    27px 15px 0 var(--uapb-fill,#E9EEF5),
+    3px 18px 0 var(--uapb-fill,#E9EEF5),
+    6px 18px 0 var(--uapb-fill,#E9EEF5),
+    9px 18px 0 var(--uapb-fill,#E9EEF5),
+    12px 18px 0 var(--uapb-fill,#E9EEF5),
+    15px 18px 0 var(--uapb-fill,#E9EEF5),
+    18px 18px 0 var(--uapb-fill,#E9EEF5),
+    21px 18px 0 var(--uapb-fill,#E9EEF5),
+    24px 18px 0 var(--uapb-fill,#E9EEF5),
+    3px 21px 0 var(--uapb-fill,#E9EEF5),
+    6px 21px 0 var(--uapb-fill,#E9EEF5),
+    9px 21px 0 var(--uapb-fill,#E9EEF5),
+    12px 21px 0 var(--uapb-fill,#E9EEF5),
+    15px 21px 0 var(--uapb-fill,#E9EEF5),
+    18px 21px 0 var(--uapb-fill,#E9EEF5),
+    21px 21px 0 var(--uapb-fill,#E9EEF5),
+    24px 21px 0 var(--uapb-fill,#E9EEF5),
+    6px 24px 0 var(--uapb-fill,#E9EEF5),
+    9px 24px 0 var(--uapb-fill,#E9EEF5),
+    12px 24px 0 var(--uapb-fill,#E9EEF5),
+    15px 24px 0 var(--uapb-fill,#E9EEF5),
+    18px 24px 0 var(--uapb-fill,#E9EEF5),
+    21px 24px 0 var(--uapb-fill,#E9EEF5),
+    9px 27px 0 var(--uapb-fill,#E9EEF5),
+    12px 27px 0 var(--uapb-fill,#E9EEF5),
+    15px 27px 0 var(--uapb-fill,#E9EEF5),
+    18px 27px 0 var(--uapb-fill,#E9EEF5);
+}
+
+.uapb-mascot-eye {
+  position: absolute;
+  top: 17px;
+  width: 6px;
+  height: 8px;
+  background: var(--uapb-bg, #0B0E14);
+  animation: uapb-mascot-blink 4.2s infinite;
+  transform-origin: center;
+}
+
+.uapb-mascot-eye-left { left: 6px; }
+.uapb-mascot-eye-right { left: 18px; }
+
+.uapb-mascot-antenna {
+  position: absolute;
+  top: 5px;
+  left: 13px;
+  width: 3px;
+  height: 6px;
+  background: var(--uapb-fill, #E9EEF5);
+}
+
+.uapb-mascot-tip {
+  position: absolute;
+  top: 0;
+  left: 12px;
+  width: 5px;
+  height: 5px;
+  background: var(--uapb-done, #34D399);
+  animation: uapb-mascot-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes uapb-mascot-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes uapb-mascot-blink {
+  0%, 91%, 100% { transform: scaleY(1); }
+  94% { transform: scaleY(0.12); }
+  97% { transform: scaleY(1); }
+}
+
+@keyframes uapb-mascot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Idle: never animated, mascot static at 60% opacity (binding). */
+.uapb-hermes-slot[data-mode="idle-first"] .uapb-mascot,
+.uapb-hermes-slot[data-mode="idle-first"] .uapb-mascot-eye,
+.uapb-hermes-slot[data-mode="idle-first"] .uapb-mascot-tip,
+.uapb-hermes-slot[data-mode="setup"] .uapb-mascot,
+.uapb-hermes-slot[data-mode="setup"] .uapb-mascot-eye,
+.uapb-hermes-slot[data-mode="setup"] .uapb-mascot-tip {
+  animation: none;
+}
+
+.uapb-hermes-slot[data-mode="idle-first"] .uapb-mascot-scale,
+.uapb-hermes-slot[data-mode="setup"] .uapb-mascot-scale {
+  opacity: 0.6;
+}
+
+/* Collapsed idle (after the first live session): only the honesty
+ * micro-label remains. */
+.uapb-hermes-slot[data-mode="idle"] .uapb-mascot-scale,
+.uapb-hermes-slot[data-mode="idle"] .uapb-hermes-body {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uapb-mascot,
+  .uapb-mascot-eye,
+  .uapb-mascot-tip {
+    animation: none;
+  }
+}
