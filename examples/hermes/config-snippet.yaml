@@ -1,0 +1,15 @@
+# Add this block to ~/.hermes/config.yaml (Hermes Agent by Nous Research).
+# It connects Hermes to the Universal Agent Progress Bar MCP server,
+# giving Hermes two tools: report_progress and get_status.
+#
+# PREREQUISITES (run once on your machine):
+#   git clone https://github.com/nx9161/agent-progress-bar
+#   cd agent-progress-bar/packages/mcp-server && npm ci && npm run build
+#
+# Replace /PATH/TO below with your real checkout path, e.g.
+# /Users/namanparmar/agent-progress-bar
+
+mcp_servers:
+  progress:
+    command: "node"
+    args: ["/PATH/TO/agent-progress-bar/packages/mcp-server/dist/index.js"]
