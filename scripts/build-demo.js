@@ -2,6 +2,8 @@
 // Zero-dependency Node build: concatenates + inlines the demo page's
 // CSS/JS into dist/index.html and injects a <meta> CSP whose script-src
 // and style-src hashes are computed over the EXACT bytes being inlined.
+// After writing, the script re-reads dist/index.html and re-hashes the
+// actual inlined text — any mismatch throws (non-zero exit).
 // Usage: node scripts/build-demo.js
 // No network, no npm packages — only node:fs, node:path, node:crypto.
 
@@ -36,8 +38,13 @@ function main() {
   // can never fuse two scripts.
   const js = [core, widget, demo].join("\n;\n");
 
-  const cssHash = sha256Base64(css);
-  const jsHash = sha256Base64(js);
+  // F1: hash the EXACT bytes that get inlined (newline-wrapped), because
+  // the CSP hash must cover the delivered <style>/<script> text verbatim.
+  const cssInlined = "\n" + css + "\n";
+  const jsInlined = "\n" + js + "\n";
+
+  const cssHash = sha256Base64(cssInlined);
+  const jsHash = sha256Base64(jsInlined);
 
   const csp =
     "<meta http-equiv=\"Content-Security-Policy\" content=\"" +
@@ -51,11 +58,11 @@ function main() {
   html = html.replace("<!--UAPB:HEAD-EXTRAS-->", csp);
   html = html.replace(
     "<!--UAPB:STYLES-->",
-    "<style>\n" + css + "\n</style>"
+    "<style>" + cssInlined + "</style>"
   );
   html = html.replace(
     "<!--UAPB:SCRIPTS-->",
-    "<script>\n" + js + "\n</script>"
+    "<script>" + jsInlined + "</script>"
   );
 
   for (const marker of ["UAPB:HEAD-EXTRAS", "UAPB:STYLES", "UAPB:SCRIPTS"]) {
@@ -67,9 +74,38 @@ function main() {
   fs.mkdirSync(DIST, { recursive: true });
   const outPath = path.join(DIST, "index.html");
   fs.writeFileSync(outPath, html, "utf8");
+
+  // Self-verification (F1): re-read the written file, extract the CSP
+  // meta's sha256 values and the actual <style>/<script> text via regex,
+  // re-hash, and throw (non-zero exit) on any mismatch.
+  const written = read(outPath);
+  const cspMatch = written.match(
+    /<meta http-equiv="Content-Security-Policy" content="([^"]*)"/
+  );
+  if (!cspMatch) {
+    throw new Error("self-verification failed: CSP meta not found");
+  }
+  const scriptHashMatch = cspMatch[1].match(/script-src 'sha256-([^']+)'/);
+  const styleHashMatch = cspMatch[1].match(/style-src 'sha256-([^']+)'/);
+  if (!scriptHashMatch || !styleHashMatch) {
+    throw new Error("self-verification failed: CSP hashes not found");
+  }
+  const styleTextMatch = written.match(/<style>([\s\S]*)<\/style>/);
+  const scriptTextMatch = written.match(/<script>([\s\S]*)<\/script>/);
+  if (!styleTextMatch || !scriptTextMatch) {
+    throw new Error("self-verification failed: inlined style/script not found");
+  }
+  if (sha256Base64(styleTextMatch[1]) !== styleHashMatch[1]) {
+    throw new Error("self-verification failed: style-src hash mismatch");
+  }
+  if (sha256Base64(scriptTextMatch[1]) !== scriptHashMatch[1]) {
+    throw new Error("self-verification failed: script-src hash mismatch");
+  }
+
   console.log("built " + outPath + " (" + Buffer.byteLength(html, "utf8") + " bytes)");
   console.log("csp script-src sha256-" + jsHash);
   console.log("csp style-src  sha256-" + cssHash);
+  console.log("self-verification passed: CSP hashes match inlined bytes");
 }
 
 main();

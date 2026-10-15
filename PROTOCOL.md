@@ -70,3 +70,16 @@ Unknown-ETA example — note `eta_seconds: null`, never a made-up number:
 - The widget (`packages/widget`) is timer-free: hosts push state; the
   element renders. Iframe embedding uses an explicit origin allowlist with
   default deny — see the widget sources and `examples/embed-snippet.html`.
+
+## Rendering guidance (non-normative)
+
+This section is advisory only. The normative contract above is unchanged.
+
+- **paused:** render the bar desaturated (e.g. grayscale), prefix the stage
+  label with "Paused — " (or "Paused" when no stage is present), and mark
+  the ETA area as "paused".
+- **error:** render the stage as an assertive alert carrying `message`, or
+  the fallback "Something went wrong" when no message was reported.
+- **eta_seconds: null:** render "estimating…" (or an equivalent
+  indeterminate cue). Never render an invented number.
+- **done:** snap the bar to 100%.

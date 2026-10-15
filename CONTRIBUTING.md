@@ -24,4 +24,4 @@ by your contribution.
 
 1. Bump `CONTRACT_VERSION` in `packages/mcp-server/src/tools.ts` on any breaking tool/schema change.
 2. Re-run `node scripts/build-demo.js` so `dist/index.html` matches the sources.
-3. `npm audit` in `packages/mcp-server`; fix or document findings before release.
+3. `npm audit --audit-level=high` runs in CI on every push/PR for both packages (see `.github/workflows/ci.yml`); do not merge with audit failures.

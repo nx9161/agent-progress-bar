@@ -8,13 +8,11 @@ telemetry, nothing leaves the machine.
 
 ## Install
 
-Exact-pinned dependencies. **First:** this lockfile was authored offline —
-run `npm install` once with network access to regenerate resolved URLs and
-integrity hashes, then use `npm ci` from then on:
+Exact-pinned dependencies. Install straight from the committed lockfile:
 
 ```sh
 cd packages/mcp-server
-npm install     # one-time, regenerates package-lock.json from the registry
+npm ci            # clean install from package-lock.json (real resolved URLs + integrity hashes)
 npm run build   # tsc -> dist/
 npm start       # node dist/index.js (stdio)
 ```
@@ -27,6 +25,31 @@ Global install for everyday use:
 ```sh
 npm install -g agent-progress-mcp
 ```
+
+## Inspector smoke test
+
+Verify the built server over stdio with the MCP Inspector CLI. The inspector
+version is **pinned** — never float `npx @modelcontextprotocol/inspector`
+(latest) in docs or CI; re-pin deliberately after testing a new release.
+
+```sh
+cd packages/mcp-server
+npm ci && npm run build
+npx -y @modelcontextprotocol/inspector@2.11.0 --cli node dist/index.js --method tools/list
+npx -y @modelcontextprotocol/inspector@2.11.0 --cli node dist/index.js \
+  --method tools/call --tool-name report_progress \
+  --tool-arg task_id=smoke:inspector --tool-arg percent=42 --tool-arg eta_seconds=30
+```
+
+Expected: `tools/list` shows `report_progress` and `get_status` with the
+input schemas below; the `tools/call` returns `{"contract":"0.1.0",
+"task_id":"smoke:inspector","percent":42,...}` with no `isError`.
+
+(Each `--cli` invocation spawns a fresh in-memory server, so `get_status`
+in a separate call won't see tasks from an earlier call. For a
+report→status round-trip inside one session, keep a single client
+connected — e.g. the Inspector web UI (`--web`) or one long-lived MCP
+client — rather than one-shot `--cli` calls.)
 
 ## Claude Desktop config
 
@@ -68,6 +91,13 @@ Add to your MCP client config (`claude_desktop_config.json` → `mcpServers`):
 - `eta_seconds` may be `null` = unknown. **Honesty rule: never fabricate
   an ETA** — report `null` rather than a guess.
 - `percent: 100` automatically sets `complete: true`.
+- `eta_seconds` is hard-bounded to 0–86400 (24h). Out-of-range or
+  non-numeric values are rejected.
+- Malformed arguments (wrong types, bad `task_id`, `eta_seconds` out of
+  range) fail strict input validation and return
+  `{ "error": "invalid_arguments", "details": [...] }`. Unknown keys are
+  rejected by the strict input schemas — over the MCP wire the SDK drops
+  them before the handler, so they are never stored.
 - `task_id` convention: `agentName:taskSlug` (e.g. `claude:summarize-report`,
   `deepseek:long-search`). The server enforces the charset
   (`^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$`) only — the naming convention is a

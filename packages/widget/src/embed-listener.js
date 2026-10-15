@@ -10,6 +10,7 @@
   var PROTOCOL = "uapb-progress";
   var VERSION = 1;
   var ORIGIN_RE = /^https:\/\/[a-z0-9.-]+(?::\d+)?$/i;
+  var STATUSES = ["started", "running", "paused", "error", "done"];
 
   function isAllowedOrigin(origin, allowlist) {
     return allowlist.indexOf(origin) !== -1;
@@ -28,17 +29,32 @@
 
   function coercePayload(payload) {
     var out = {};
-    if (typeof payload.percent === "number" && !isNaN(payload.percent)) {
+    // AppSec B1: Number.isFinite rejects Infinity/-Infinity/NaN, which
+    // typeof+isNaN let through.
+    if (typeof payload.percent === "number" && Number.isFinite(payload.percent)) {
       out.percent = payload.percent;
     }
     if (
       payload.etaSeconds === null ||
-      (typeof payload.etaSeconds === "number" && !isNaN(payload.etaSeconds))
+      (typeof payload.etaSeconds === "number" && Number.isFinite(payload.etaSeconds))
     ) {
       out.etaSeconds = payload.etaSeconds;
     }
     if (typeof payload.stage === "string") {
       out.stage = payload.stage.slice(0, 120);
+    }
+    if (typeof payload.status === "string" && STATUSES.indexOf(payload.status) !== -1) {
+      out.status = payload.status;
+    }
+    if (typeof payload.message === "string") {
+      out.message = payload.message.slice(0, 280);
+    }
+    if (
+      typeof payload.durationMs === "number" &&
+      Number.isFinite(payload.durationMs) &&
+      payload.durationMs >= 0
+    ) {
+      out.durationMs = payload.durationMs;
     }
     return out;
   }
@@ -89,21 +105,29 @@
     return out;
   }
 
-  /** Parse an initial ?percent=&eta=&stage= seed (allowlisted params only). */
+  /** Parse an initial ?percent=&eta=&stage=&status=&label= seed (allowlisted params only). */
   function parseSeed(search) {
     var params = new URLSearchParams(search);
     var seed = {};
     var percent = params.get("percent");
-    if (percent !== null && percent !== "" && !isNaN(Number(percent))) {
+    if (percent !== null && percent !== "" && Number.isFinite(Number(percent))) {
       seed.percent = Number(percent);
     }
     var eta = params.get("eta");
-    if (eta !== null && eta !== "" && !isNaN(Number(eta))) {
+    if (eta !== null && eta !== "" && Number.isFinite(Number(eta))) {
       seed.etaSeconds = Number(eta);
     }
     var stage = params.get("stage");
     if (stage !== null) {
       seed.stage = String(stage).slice(0, 120);
+    }
+    var status = params.get("status");
+    if (status !== null && STATUSES.indexOf(status) !== -1) {
+      seed.status = status;
+    }
+    var label = params.get("label");
+    if (label !== null && label !== "") {
+      seed.label = String(label).slice(0, 120);
     }
     return seed;
   }

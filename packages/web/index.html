@@ -19,13 +19,31 @@
     <div class="wordmark">UAPB <span class="wordmark-sub">Universal Agent Progress Bar</span></div>
     <div class="demo-badge">Concept demo &mdash; simulated run</div>
     <nav class="top-links" aria-label="Project links">
-      <a href="https://github.com/" rel="noopener">GitHub</a>
-      <a href="PROTOCOL.md" rel="noopener">Spec</a>
+      <a id="navGithub" href="https://github.com/nx9161/agent-progress-bar" rel="noopener">GitHub</a>
+      <a id="navSpec" href="https://raw.githubusercontent.com/nx9161/agent-progress-bar/main/PROTOCOL.md" rel="noopener">Spec</a>
     </nav>
   </header>
 
   <main>
     <p class="hero">A progress layer any AI agent can adopt: a live 0&ndash;100% bar, a countdown, and a stage ticker &mdash; reported by the agent, rendered anywhere.</p>
+
+    <section class="how-it-works" aria-label="How it works">
+      <div class="how-step">
+        <span class="how-num">01</span>
+        <h2>Agent reports</h2>
+        <p>Any agent sends percent, ETA, and stage through the MCP connector.</p>
+      </div>
+      <div class="how-step">
+        <span class="how-num">02</span>
+        <h2>Layer renders</h2>
+        <p>The module paints a live bar, countdown, and stage ticker wherever it&rsquo;s embedded.</p>
+      </div>
+      <div class="how-step">
+        <span class="how-num">03</span>
+        <h2>You watch</h2>
+        <p>This demo simulates it. Embed the widget in your own agent UI.</p>
+      </div>
+    </section>
 
     <section class="chat" aria-label="Mock chat window">
       <div class="bubble user-bubble">Explain quantum tunneling simply</div>
@@ -52,6 +70,24 @@
         <button type="button" class="btn preset" data-duration="60">60s</button>
       </div>
       <button type="button" id="compactBtn" class="btn" aria-pressed="false">Compact</button>
+    </section>
+
+    <noscript>
+      <div class="noscript-box">
+        <p>This demo needs JavaScript to run its simulated progress bar.</p>
+        <p class="noscript-honesty">Concept demo &mdash; simulated run; no AI is connected. We cannot modify any third-party client&rsquo;s UI &mdash; this is an open layer agent builders adopt voluntarily, not an integration into any chat app.</p>
+      </div>
+    </noscript>
+
+    <section class="preview-states" aria-label="Preview widget states">
+      <p class="preview-states-label">Preview states <span class="sim-tag">simulated previews</span></p>
+      <div class="preview-buttons" role="group" aria-label="Simulated widget states">
+        <button type="button" class="btn preview-state" data-state="running">Running</button>
+        <button type="button" class="btn preview-state" data-state="estimating">Estimating</button>
+        <button type="button" class="btn preview-state" data-state="paused">Paused</button>
+        <button type="button" class="btn preview-state" data-state="error">Error</button>
+        <button type="button" class="btn preview-state" data-state="done">Done</button>
+      </div>
     </section>
 
     <section class="works-with" aria-label="Compatible agents">

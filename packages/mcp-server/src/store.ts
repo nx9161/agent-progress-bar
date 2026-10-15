@@ -31,10 +31,16 @@ export interface IProgressStore {
 const TASK_ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/;
 const DEFAULT_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const MAX_ENTRIES = 1000;
+const MAX_ETA_SECONDS = 86400; // 24h sanity cap (M3: hard bound)
 
 function clampPercent(p: number): number {
   if (typeof p !== "number" || Number.isNaN(p)) return 0;
   return Math.min(100, Math.max(0, p));
+}
+
+function clampEta(e: number | null | undefined): number | null {
+  if (e === null || e === undefined || Number.isNaN(e)) return null;
+  return Math.min(MAX_ETA_SECONDS, Math.max(0, e));
 }
 
 export class InMemoryProgressStore implements IProgressStore {
@@ -77,7 +83,7 @@ export class InMemoryProgressStore implements IProgressStore {
     const record: ProgressRecord = {
       task_id: input.task_id,
       percent,
-      eta_seconds: input.eta_seconds ?? null,
+      eta_seconds: clampEta(input.eta_seconds),
       stage: (input.stage ?? "").slice(0, 120),
       complete: percent >= 100,
       updated_at: nowIso,

@@ -34,6 +34,10 @@
   var seed = window.UAPBEmbed.parseSeed(window.location.search);
   if (Object.keys(seed).length > 0) {
     el.setProgress(seed);
+    // setProgress() has no label param; the label attribute carries it.
+    if (typeof seed.label === "string" && seed.label.length > 0) {
+      el.setAttribute("label", seed.label);
+    }
   }
 })();
 </script>

@@ -20,11 +20,20 @@ const taskId = z
     message: "task_id must match ^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
   });
 
-/** Raw zod shape (for the MCP SDK's registerTool inputSchema). */
+/**
+ * Raw zod shape for the MCP SDK's registerTool inputSchema.
+ * NOTE: strictness is NOT enforced here. SDK 1.17.1 types
+ * registerTool<InputArgs extends ZodRawShape>, so a ZodObject cannot be
+ * passed as inputSchema (compile error). The strict ZodObjects
+ * (ReportProgressInput / GetStatusInput) are applied at the handler level
+ * in server.ts instead — see the handler-level strictness gate there.
+ */
 export const reportProgressShape = {
   task_id: taskId,
-  percent: z.number().min(0).max(100),
-  eta_seconds: z.number().min(0).nullable().optional(),
+  // O1: range deliberately NOT bounded here. Out-of-range percent clamps in store.report — never a tool error (docs promise this).
+  percent: z.number().finite(),
+  // M3: hard bounds in schema (violation = tool error) + store clamp (defense in depth).
+  eta_seconds: z.number().finite().min(0).max(86400).nullable().optional(),
   stage: z.string().max(120).optional(),
   message: z.string().max(280).optional(),
 } as const;

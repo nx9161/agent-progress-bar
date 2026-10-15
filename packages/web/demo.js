@@ -6,6 +6,8 @@
 (function () {
   "use strict";
 
+  if (!window.UAPB) throw new Error("uapb-core.js must precede demo.js");
+
   var DEFAULT_DURATION_S = 45;
   var ALLOWED_DURATIONS = { 15: true, 30: true, 45: true, 60: true };
   var MILESTONES = [25, 50, 75, 100];
@@ -90,7 +92,14 @@
 
   SimulatedSource.prototype.finish = function () {
     // Termination clamps: exactly 100% / 0:00 / "Done".
-    this.el.setProgress({ percent: 100, etaSeconds: 0, stage: "Done" });
+    // durationMs carries real elapsed run time on the uapb-complete event.
+    this.el.setProgress({
+      percent: 100,
+      etaSeconds: 0,
+      stage: "Done",
+      status: "done",
+      durationMs: Math.round(performance.now() - this.startStamp - this.pausedTotal),
+    });
     this.announce(100);
     this.stop();
   };
@@ -132,6 +141,43 @@
     }
     this.tick();
   };
+
+  // Live project links (nav anchors carry these ids in index.html).
+  var LINKS = {
+    github: "https://github.com/nx9161/agent-progress-bar",
+    spec: "https://raw.githubusercontent.com/nx9161/agent-progress-bar/main/PROTOCOL.md",
+  };
+  var navGithub = document.getElementById("navGithub");
+  var navSpec = document.getElementById("navSpec");
+  if (navGithub) navGithub.setAttribute("href", LINKS.github);
+  if (navSpec) navSpec.setAttribute("href", LINKS.spec);
+
+  // Simulated preview states — canned widget states, clearly labeled as
+  // previews in the UI. Each stops the sim, then pushes the canned values.
+  var PREVIEWS = {
+    running: { percent: 42, etaSeconds: 30, stage: "Reasoning", status: "running" },
+    estimating: { percent: 12, etaSeconds: null, stage: "Searching memory", status: "running" },
+    paused: { percent: 57, etaSeconds: 24, stage: "Reasoning", status: "paused" },
+    error: {
+      percent: 63,
+      etaSeconds: null,
+      stage: "Reasoning",
+      status: "error",
+      message: "Upstream request timed out",
+    },
+    done: { percent: 100, etaSeconds: 0, stage: "Done", status: "done" },
+  };
+  var previewBtns = Array.prototype.slice.call(
+    document.querySelectorAll(".preview-state")
+  );
+  previewBtns.forEach(function (b) {
+    b.addEventListener("click", function () {
+      var canned = PREVIEWS[b.getAttribute("data-state")];
+      if (!canned) return;
+      source.stop();
+      bar.setProgress(canned);
+    });
+  });
 
   var source = new SimulatedSource(bar, durationMs, reducedMotion);
 

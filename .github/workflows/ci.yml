@@ -1,0 +1,79 @@
+# CI: build, test, contract, audit. No publish steps — releases are owner-gated.
+name: ci
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: packages/*/package-lock.json
+
+      - name: Install (mcp-server)
+        working-directory: packages/mcp-server
+        run: npm ci
+
+      - name: Install (cli)
+        working-directory: packages/cli
+        run: npm ci
+
+      - name: Typecheck + build (mcp-server)
+        working-directory: packages/mcp-server
+        run: npm run build
+
+      - name: Typecheck + build (cli)
+        working-directory: packages/cli
+        run: npm run build
+
+      - name: Contract tests
+        run: node scripts/contract-test.js
+
+      - name: Stdout-purity test
+        working-directory: packages/mcp-server
+        run: npm test
+
+      - name: Inspector smoke test
+        run: |
+          npx -y @modelcontextprotocol/inspector@2.11.0 --cli node packages/mcp-server/dist/index.js --method tools/list
+          npx -y @modelcontextprotocol/inspector@2.11.0 --cli node packages/mcp-server/dist/index.js --method tools/call --method-args '{"name":"report_progress","arguments":{"task_id":"ci:smoke","percent":42,"eta_seconds":30,"stage":"CI smoke"}}'
+
+      - name: Build demo page
+        run: node scripts/build-demo.js
+
+      - name: Audit gate (mcp-server)
+        working-directory: packages/mcp-server
+        run: npm audit --audit-level=high
+
+      - name: Audit gate (cli)
+        working-directory: packages/cli
+        run: npm audit --audit-level=high
+
+  pages:
+    # Public demo front door. Static dist/ only — the honesty labels and
+    # trademark footer ride along with the build, unchanged.
+    if: github.ref == 'refs/heads/main'
+    needs: build-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build demo page
+        run: node scripts/build-demo.js
+      - name: Publish dist/ to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: gh-pages
