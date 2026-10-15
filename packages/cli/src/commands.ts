@@ -327,8 +327,8 @@ export async function cmdDashboard(): Promise<void> {
 
 /**
  * Read-only inspector for the JSONL event log. Prints newest-first compact
- * lines: <timestamp> <agent> <session> <task_id> <percent>% <stage>.
- * Never writes. ("session" is not part of the protocol; "-" when absent.)
+ * lines: <timestamp> <agent> <session_id> <task_id> <percent>% <stage>.
+ * Never writes. ("-" when absent.)
  */
 export async function cmdEvents(flags: Flags): Promise<void> {
   const agent = typeof flags.agent === "string" ? flags.agent : undefined;
@@ -349,7 +349,7 @@ export async function cmdEvents(flags: Flags): Promise<void> {
     return;
   }
   for (const e of newest) {
-    const session = typeof e.session === "string" ? e.session : "-";
+    const session = typeof e.session_id === "string" ? e.session_id : "-";
     console.log(
       `${e.timestamp} ${e.agent ?? "-"} ${session} ${e.task_id} ${e.percent}% ${e.stage}`
     );

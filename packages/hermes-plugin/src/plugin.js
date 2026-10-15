@@ -40,6 +40,7 @@
   var SETUP_TEXT =
     "Paste your dashboard token \u2014 run `agent-progress dashboard` to get it.";
   var RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 15000, 30000];
+  var MAX_RECONNECT_ATTEMPTS = 5; // F3: then the token is presumed stale
   var DONE_HOLD_MS = 4000;
 
   function warn(msg) {
@@ -81,6 +82,14 @@
       window.localStorage.setItem(key, val);
     } catch (e) {
       /* storage unavailable (private mode) — run without persistence */
+    }
+  }
+
+  function delLS(key) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch (e) {
+      /* storage unavailable (private mode) — nothing persisted to clear */
     }
   }
 
@@ -254,17 +263,41 @@
     function scheduleReconnect(reason) {
       disconnect();
       if (state.destroyed || !state.token) return;
+      state.reconnectAttempt++;
+      if (state.reconnectAttempt > MAX_RECONNECT_ATTEMPTS) {
+        /* F3: the dashboard token is per launch. After a dashboard restart
+         * the persisted token is stale, and retrying forever with it is a
+         * dead end ("reconnecting…" indefinitely). Clear it and return to
+         * setup so the user can paste the fresh token. */
+        resetTokenToSetup();
+        return;
+      }
       var delay =
         RECONNECT_DELAYS_MS[
-          Math.min(state.reconnectAttempt, RECONNECT_DELAYS_MS.length - 1)
+          Math.min(state.reconnectAttempt - 1, RECONNECT_DELAYS_MS.length - 1)
         ];
-      state.reconnectAttempt++;
       statusText("reconnecting\u2026");
       state.reconnectTimer = setTimeout(function () {
         state.reconnectTimer = null;
         connect();
       }, delay);
       warn("dashboard stream dropped (" + reason + "); retrying in " + delay + "ms");
+    }
+
+    function resetTokenToSetup() {
+      state.token = null;
+      state.reconnectAttempt = 0;
+      delLS(LS_TOKEN);
+      setMode("setup");
+      statusText(
+        "Dashboard token expired \u2014 run `agent-progress dashboard` and paste the new token."
+      );
+      warn(
+        "dashboard stream failed " +
+          MAX_RECONNECT_ATTEMPTS +
+          " times in a row; token presumed stale, cleared, back to setup"
+      );
+      render();
     }
 
     function connect() {
@@ -409,6 +442,7 @@
       setLS(LS_PORT, String(port));
       state.token = token;
       state.port = port;
+      state.reconnectAttempt = 0; // fresh token, fresh failure budget
       tokenInput.value = "";
       connect();
       render();

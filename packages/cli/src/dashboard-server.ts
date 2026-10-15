@@ -12,7 +12,9 @@
 //         (never resolved via DNS), echoed only when loopback, never "*".
 
 import {
+  chmodSync,
   closeSync,
+  lstatSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -30,6 +32,7 @@ import {
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
+import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
 
 // C14 — loopback bind is hardcoded. Changing this constant is the ONLY way
@@ -322,6 +325,13 @@ export async function startDashboardServer(
   const token = randomBytes(16).toString("base64url"); // 128-bit, per launch
   const eventsDir = opts.eventsDir ?? defaultEventsDir();
   mkdirSync(eventsDir, { recursive: true, mode: 0o700 });
+  // N3 (mirrors C4 in the MCP server's event log): refuse to operate
+  // through a symlinked dir, and enforce 0700 rather than trusting umask
+  // or a pre-existing mode.
+  if (lstatSync(eventsDir).isSymbolicLink()) {
+    throw new Error(`refusing symlinked events dir: ${eventsDir}`);
+  }
+  chmodSync(eventsDir, 0o700);
   const startedAt = Date.now();
 
   // SPA shell lives at packages/dashboard/dist/index.html; from the compiled
@@ -343,6 +353,11 @@ export async function startDashboardServer(
   let pollTimer: NodeJS.Timeout | null = null;
   let fileSize = 0; // bytes of today's file already consumed
   let tailRemainder = ""; // trailing partial line, not yet a full event
+  // N2: decodes chunk bytes to text. A multi-byte UTF-8 char split across
+  // two chunks is held internally and completed by the next write — without
+  // this, buf.toString("utf8") would emit U+FFFD mid-char and corrupt the
+  // byte offsets the SSE resume contract depends on.
+  const utf8Decoder = new StringDecoder("utf8");
 
   const sendEvent = (res: ServerResponse, id: number, event: DashboardEvent) => {
     // SSE id = byte offset of the event's line start in today's JSONL file.
@@ -364,6 +379,7 @@ export async function startDashboardServer(
     if (size < fileSize) {
       fileSize = 0; // rotated or truncated: offsets reset (see sendEvent)
       tailRemainder = "";
+      utf8Decoder.end(); // N2: discard any held partial char from the old file
     }
     if (size <= fileSize) return;
     const chunkStart = fileSize;
@@ -373,7 +389,10 @@ export async function startDashboardServer(
       const buf = Buffer.alloc(size - chunkStart);
       readSync(fd, buf, 0, buf.length, chunkStart);
       fileSize = size;
-      const chunk = tailRemainder + buf.toString("utf8");
+      // N2: the decoder completes chars split across chunk boundaries; the
+      // trailing remainder is then always a whole-char string, so the
+      // byteLength-based offset accounting below stays exact.
+      const chunk = tailRemainder + utf8Decoder.write(buf);
       const lines = chunk.split("\n");
       tailRemainder = lines.pop() ?? "";
       let offset = chunkStart;
@@ -622,6 +641,15 @@ export async function startDashboardServer(
   if (bound && typeof bound === "object") {
     port = bound.port;
   }
+
+  // N4: permanent error handler — a late server error is logged to stderr
+  // and never crashes the process. Attached only after the port scan so
+  // EADDRINUSE probes during the scan don't hit it.
+  server.on("error", (err: Error) => {
+    process.stderr.write(
+      `[agent-progress dashboard] server error: ${err.message}\n`
+    );
+  });
 
   const close = async (): Promise<void> => {
     if (pollTimer) {

@@ -13,9 +13,10 @@
 #   6. prints next steps
 #
 #   --dry-run    print every action, change nothing
-#   --uninstall  remove the installed plugin dir, restore config.yaml from
-#                the newest backup, and remove the plugins.enabled entry
-#                idempotently
+#   --uninstall  remove the installed plugin dir and surgically remove the
+#                plugins.enabled entry (idempotent). A backup restore
+#                happens ONLY if config.yaml is missing entirely; backups
+#                otherwise stay as the documented manual fallback.
 #
 # No network is used at any point (AppSec C10/C11). Disk writes are
 # confined to ~/.hermes/** and ~/.agent-progress/** and asserted before
@@ -108,18 +109,26 @@ function findPlugins() {
 }
 
 // Locate the `enabled:` line inside the plugins block and describe it.
+// F1: collect ALL `enabled:` matches within the block and return the one
+// with the SMALLEST indent — the direct child of `plugins:`. First-wins on
+// ties. (A nested `enabled:` appearing earlier, e.g. plugins: -> dashboard:
+// -> enabled: [...], must never hijack the edit.)
 function findEnabled(pIdx) {
   const end = blockEnd(pIdx + 1);
+  const pIndent = indentOf(lines[pIdx]);
+  let best = null;
   for (let i = pIdx + 1; i < end; i++) {
     const l = lines[i];
     if (isBlankOrComment(l)) continue;
+    if (indentOf(l) <= pIndent) break; // dedent ends the block
     const m = l.match(/^(\s*)enabled:(.*)$/);
-    if (m && indentOf(l) > 0) return { idx: i, indent: m[1], rest: m[2] };
-    // A dedented non-comment line ends the search (shouldn't happen:
-    // blockEnd already bounds us, but stay safe).
-    if (indentOf(l) <= indentOf(lines[pIdx])) return null;
+    if (m) {
+      if (best === null || m[1].length < best.indent.length) {
+        best = { idx: i, indent: m[1], rest: m[2] };
+      }
+    }
   }
-  return null;
+  return best;
 }
 
 function listItems(e) {
@@ -310,25 +319,16 @@ do_uninstall() {
     say "  removed"
   fi
 
-  say "[2/3] restoring ${CONFIG} from backup"
-  local newest_backup=""
-  # shellcheck disable=SC2012
-  newest_backup="$(ls -t "${CONFIG}".uapb-bak-* 2>/dev/null | head -n 1 || true)"
-  if [ -n "$newest_backup" ]; then
-    if [ "$DRY_RUN" = "1" ]; then
-      say "  [dry-run] would: cp -p ${newest_backup} ${CONFIG}"
-    else
-      assert_under "$CONFIG"
-      cp -p "$newest_backup" "$CONFIG"
-      say "  restored from $newest_backup"
-    fi
-  else
-    say "  no uapb backup found; leaving ${CONFIG} in place"
-  fi
-
-  say "[3/3] removing '${PLUGIN_NAME}' from plugins.enabled (idempotent)"
+  # F2: surgical removal FIRST — never restore a backup over the live config,
+  # which would discard user edits made between install and uninstall.
+  # A backup restore happens ONLY when the config file is missing entirely
+  # (the install-time backup predates our edit, so it contains no plugin
+  # entry and needs no further surgery). Backups otherwise remain as the
+  # documented manual fallback.
+  say "[2/3] removing '${PLUGIN_NAME}' from plugins.enabled (idempotent, surgical)"
   if [ "$DRY_RUN" = "1" ]; then
     say "  [dry-run] would: YAML-aware idempotent removal (embedded node, never sed)"
+    say "  [dry-run] would: if ${CONFIG} were missing, restore it from the newest backup"
   else
     if [ -f "$CONFIG" ]; then
       command -v node >/dev/null 2>&1 || {
@@ -338,7 +338,16 @@ do_uninstall() {
       assert_under "$CONFIG"
       yaml_edit remove
     else
-      say "  no ${CONFIG}; nothing to edit"
+      # shellcheck disable=SC2012
+      local newest_backup=""
+      newest_backup="$(ls -t "${CONFIG}".uapb-bak-* 2>/dev/null | head -n 1 || true)"
+      if [ -n "$newest_backup" ]; then
+        assert_under "$CONFIG"
+        cp -p "$newest_backup" "$CONFIG"
+        say "  ${CONFIG} was missing; restored from $newest_backup"
+      else
+        say "  no ${CONFIG} and no uapb backup found; nothing to edit"
+      fi
     fi
   fi
 

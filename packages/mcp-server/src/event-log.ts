@@ -181,7 +181,17 @@ export class EventLog {
       }
       w = { window, count: 0, dropped: 0, agent, sessionId };
       this.windows.set(taskId, w);
-      if (this.windows.size > MAX_TRACKED_TASKS) this.windows.clear(); // C5: bound memory
+      if (this.windows.size > MAX_TRACKED_TASKS) {
+        // N1: flush pending drop-markers before evicting tracked windows —
+        // otherwise accumulated dropped counts vanish silently and the log
+        // stops being truthful about what it dropped.
+        for (const [tid, win] of this.windows) {
+          if (win.dropped > 0) {
+            this.writeMarker(tid, win.agent, win.sessionId, win.dropped, now);
+          }
+        }
+        this.windows.clear(); // C5: bound memory
+      }
     } else {
       w.agent = agent;
       w.sessionId = sessionId;
