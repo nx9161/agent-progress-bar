@@ -183,6 +183,152 @@ body {
   50% { opacity: 1; }
 }
 
+/* ---- pixel mascot (original art, demo chrome only) ---- */
+.mascot {
+  position: relative;
+  width: 30px;
+  height: 38px;
+  flex: none;
+  animation: mascot-bob 2.4s ease-in-out infinite;
+}
+
+.mascot-body {
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 3px;
+  height: 3px;
+  box-shadow:
+    6px 0px 0 #E9EEF5,
+    9px 0px 0 #E9EEF5,
+    12px 0px 0 #E9EEF5,
+    15px 0px 0 #E9EEF5,
+    18px 0px 0 #E9EEF5,
+    21px 0px 0 #E9EEF5,
+    3px 3px 0 #E9EEF5,
+    6px 3px 0 #E9EEF5,
+    9px 3px 0 #E9EEF5,
+    12px 3px 0 #E9EEF5,
+    15px 3px 0 #E9EEF5,
+    18px 3px 0 #E9EEF5,
+    21px 3px 0 #E9EEF5,
+    24px 3px 0 #E9EEF5,
+    0px 6px 0 #E9EEF5,
+    3px 6px 0 #E9EEF5,
+    6px 6px 0 #E9EEF5,
+    9px 6px 0 #E9EEF5,
+    12px 6px 0 #E9EEF5,
+    15px 6px 0 #E9EEF5,
+    18px 6px 0 #E9EEF5,
+    21px 6px 0 #E9EEF5,
+    24px 6px 0 #E9EEF5,
+    27px 6px 0 #E9EEF5,
+    0px 9px 0 #E9EEF5,
+    3px 9px 0 #E9EEF5,
+    6px 9px 0 #E9EEF5,
+    9px 9px 0 #E9EEF5,
+    12px 9px 0 #E9EEF5,
+    15px 9px 0 #E9EEF5,
+    18px 9px 0 #E9EEF5,
+    21px 9px 0 #E9EEF5,
+    24px 9px 0 #E9EEF5,
+    27px 9px 0 #E9EEF5,
+    0px 12px 0 #E9EEF5,
+    3px 12px 0 #E9EEF5,
+    6px 12px 0 #E9EEF5,
+    9px 12px 0 #E9EEF5,
+    12px 12px 0 #E9EEF5,
+    15px 12px 0 #E9EEF5,
+    18px 12px 0 #E9EEF5,
+    21px 12px 0 #E9EEF5,
+    24px 12px 0 #E9EEF5,
+    27px 12px 0 #E9EEF5,
+    0px 15px 0 #E9EEF5,
+    3px 15px 0 #E9EEF5,
+    6px 15px 0 #E9EEF5,
+    9px 15px 0 #E9EEF5,
+    12px 15px 0 #E9EEF5,
+    15px 15px 0 #E9EEF5,
+    18px 15px 0 #E9EEF5,
+    21px 15px 0 #E9EEF5,
+    24px 15px 0 #E9EEF5,
+    27px 15px 0 #E9EEF5,
+    3px 18px 0 #E9EEF5,
+    6px 18px 0 #E9EEF5,
+    9px 18px 0 #E9EEF5,
+    12px 18px 0 #E9EEF5,
+    15px 18px 0 #E9EEF5,
+    18px 18px 0 #E9EEF5,
+    21px 18px 0 #E9EEF5,
+    24px 18px 0 #E9EEF5,
+    3px 21px 0 #E9EEF5,
+    6px 21px 0 #E9EEF5,
+    9px 21px 0 #E9EEF5,
+    12px 21px 0 #E9EEF5,
+    15px 21px 0 #E9EEF5,
+    18px 21px 0 #E9EEF5,
+    21px 21px 0 #E9EEF5,
+    24px 21px 0 #E9EEF5,
+    6px 24px 0 #E9EEF5,
+    9px 24px 0 #E9EEF5,
+    12px 24px 0 #E9EEF5,
+    15px 24px 0 #E9EEF5,
+    18px 24px 0 #E9EEF5,
+    21px 24px 0 #E9EEF5,
+    9px 27px 0 #E9EEF5,
+    12px 27px 0 #E9EEF5,
+    15px 27px 0 #E9EEF5,
+    18px 27px 0 #E9EEF5;
+}
+
+.mascot-eye {
+  position: absolute;
+  top: 17px;
+  width: 6px;
+  height: 8px;
+  background: #0B0E14;
+  animation: mascot-blink 4.2s infinite;
+  transform-origin: center;
+}
+
+.mascot-eye.left { left: 6px; }
+.mascot-eye.right { left: 18px; }
+
+.mascot-antenna {
+  position: absolute;
+  top: 5px;
+  left: 13px;
+  width: 3px;
+  height: 6px;
+  background: #E9EEF5;
+}
+
+.mascot-tip {
+  position: absolute;
+  top: 0;
+  left: 12px;
+  width: 5px;
+  height: 5px;
+  background: var(--uapb-done);
+  animation: mascot-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes mascot-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes mascot-blink {
+  0%, 91%, 100% { transform: scaleY(1); }
+  94% { transform: scaleY(0.12); }
+  97% { transform: scaleY(1); }
+}
+
+@keyframes mascot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 .progress-module uapb-progress { display: block; }
 
 .eta-caption {
@@ -340,5 +486,6 @@ a:focus-visible, button:focus-visible {
 /* ---- reduced motion ---- */
 @media (prefers-reduced-motion: reduce) {
   .dot { animation: none; opacity: 0.8; }
+  .mascot, .mascot-eye, .mascot-tip { animation: none; }
   * { transition: none !important; }
 }

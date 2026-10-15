@@ -12,6 +12,14 @@
   var ALLOWED_DURATIONS = { 15: true, 30: true, 45: true, 60: true };
   var MILESTONES = [25, 50, 75, 100];
 
+  // Estimates move. Twice per run the simulated agent revises its ETA —
+  // the countdown visibly jumps, demonstrating the honesty rule:
+  // eta_seconds is a live estimate, never a promise.
+  var REESTIMATES = [
+    { at: 0.45, bias: 1.5, stage: "Recalibrating estimate\u2026", holdMs: 2600 },
+    { at: 0.78, bias: 0.6, stage: "Ahead of schedule\u2026", holdMs: 2200 },
+  ];
+
   var bar = document.getElementById("demoBar");
   var restartBtn = document.getElementById("restartBtn");
   var compactBtn = document.getElementById("compactBtn");
@@ -56,6 +64,10 @@
     this.pauseStart = 0;
     this.announced = {};
     this.running = false;
+    this.etaBias = 1;
+    this.reestimateIdx = 0;
+    this.reestimateStage = null;
+    this.reestimateUntil = 0;
     var self = this;
     this.onVisibility = function () {
       if (document.hidden) {
@@ -75,6 +87,10 @@
     this.pausedTotal = 0;
     this.pauseStart = 0;
     this.announced = {};
+    this.etaBias = 1;
+    this.reestimateIdx = 0;
+    this.reestimateStage = null;
+    this.reestimateUntil = 0;
     this.running = true;
     document.addEventListener("visibilitychange", this.onVisibility);
     this.el.setProgress({ percent: 0, etaSeconds: this.totalMs / 1000, stage: window.UAPB.STAGES[0] });
@@ -128,12 +144,32 @@
       return;
     }
     var sample = window.UAPB.sampleTimeline(this.timeline, Math.max(0, elapsed));
+    var progressRatio = elapsed / this.totalMs;
+
+    // Fire re-estimates as the run crosses each threshold: the ETA bias
+    // changes and the stage ticker briefly names the revision.
+    while (
+      this.reestimateIdx < REESTIMATES.length &&
+      progressRatio >= REESTIMATES[this.reestimateIdx].at
+    ) {
+      var rev = REESTIMATES[this.reestimateIdx];
+      this.etaBias = rev.bias;
+      this.reestimateStage = rev.stage;
+      this.reestimateUntil = now + rev.holdMs;
+      this.reestimateIdx++;
+    }
+
     var remainingMs = Math.max(0, this.totalMs - elapsed);
+    var stage =
+      now < this.reestimateUntil && this.reestimateStage
+        ? this.reestimateStage
+        : sample.stage;
     // Math.ceil(remainingMs/1000) inside formatCountdown hits 0:00 exactly.
+    // etaBias shapes the DISPLAYED estimate only — finish() stays exact.
     this.el.setProgress({
       percent: sample.percent,
-      etaSeconds: remainingMs / 1000,
-      stage: sample.stage,
+      etaSeconds: (remainingMs / 1000) * this.etaBias,
+      stage: stage,
     });
     var whole = Math.round(sample.percent);
     for (var i = 0; i < MILESTONES.length; i++) {
