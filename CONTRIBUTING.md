@@ -9,7 +9,13 @@ open-source project — the bar is "clear, honest, and safe".
 - **Pull requests, not direct pushes.** Keep PRs focused; describe what changed and why. A maintainer reviews every PR.
 - **No credentials, ever.** None are needed for this project. Do not commit API keys, tokens, passwords, or any secrets — in code, config, docs, or examples.
 - **No personal identifiers.** Don't add anyone's email, phone number, address, or other PII to the repo.
-- **Honesty labels stay.** The demo's "Concept demo — simulated run" labels and the README's hard truth are load-bearing. PRs that weaken them will not be merged.
+- **Honesty labels stay — and extend to every new surface.** The demo's
+  "Concept demo — simulated run" labels and the README's hard truth are
+  load-bearing. Any new user-visible surface (dashboard, Hermes plugin,
+  future viewers) MUST carry the honesty substance in always-visible
+  copy: "self-reported thinking", "estimates move", `null` ETA renders as
+  "estimating…", and values are never fabricated. PRs that weaken any of
+  these will not be merged.
 - **Tests for behavior changes.** The MCP server has a stdout-purity test (`npm test`); keep it green and extend coverage when you change server behavior.
 
 ## DCO-lite

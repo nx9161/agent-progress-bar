@@ -3,6 +3,14 @@
 // maps 1:1 onto an MCP tool on the server ("each and every button").
 
 import { CliError, McpClient, type ToolDef } from "./mcp.js";
+import {
+  defaultEventsDir,
+  eventsFile,
+  installGracefulShutdown,
+  readEventsFile,
+  startDashboardServer,
+  type DashboardEvent,
+} from "./dashboard-server.js";
 import { listTasks, registryPath, touchTask } from "./registry.js";
 import {
   bar,
@@ -15,6 +23,7 @@ import {
   validateDuration,
   validateEta,
   validateInterval,
+  validateLimit,
   validateMessage,
   validatePercent,
   validateStage,
@@ -295,4 +304,54 @@ export async function cmdWatch(flags: Flags): Promise<void> {
 
   if (tty) process.stdout.write("\n");
   console.log(`task "${taskId}" complete`);
+}
+
+/**
+ * Serve the dashboard SPA + localhost SSE stream over the JSONL event log.
+ * Binds 127.0.0.1 only (hardcoded, AppSec C14), scans ports 17421-17430,
+ * mints a per-launch 128-bit token (C1). Blocks until SIGINT/SIGTERM.
+ * The token is printed to the operator's terminal (stdout) only — never to
+ * logs, argv, or env — and dies with the process.
+ */
+export async function cmdDashboard(): Promise<void> {
+  const handle = await startDashboardServer();
+  installGracefulShutdown(handle);
+  console.log(
+    `UAPB dashboard: http://127.0.0.1:${handle.port}/?token=${handle.token}`
+  );
+  console.log(`events dir: ${handle.eventsDir}`);
+  await new Promise<void>(() => {
+    /* block until SIGINT/SIGTERM */
+  });
+}
+
+/**
+ * Read-only inspector for the JSONL event log. Prints newest-first compact
+ * lines: <timestamp> <agent> <session> <task_id> <percent>% <stage>.
+ * Never writes. ("session" is not part of the protocol; "-" when absent.)
+ */
+export async function cmdEvents(flags: Flags): Promise<void> {
+  const agent = typeof flags.agent === "string" ? flags.agent : undefined;
+  const task = typeof flags.task === "string" ? flags.task : undefined;
+  const limit = validateLimit(flags.limit);
+  const file =
+    typeof flags.file === "string" && flags.file.length > 0
+      ? flags.file
+      : eventsFile(defaultEventsDir());
+
+  let events: DashboardEvent[] = readEventsFile(file).map((e) => e.event);
+  if (agent !== undefined) events = events.filter((e) => e.agent === agent);
+  if (task !== undefined) events = events.filter((e) => e.task_id === task);
+  const newest = events.reverse().slice(0, limit);
+
+  if (newest.length === 0) {
+    console.log(`no events in ${file}`);
+    return;
+  }
+  for (const e of newest) {
+    const session = typeof e.session === "string" ? e.session : "-";
+    console.log(
+      `${e.timestamp} ${e.agent ?? "-"} ${session} ${e.task_id} ${e.percent}% ${e.stage}`
+    );
+  }
 }

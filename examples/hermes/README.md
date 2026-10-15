@@ -32,9 +32,17 @@ is, and its ETA — through `report_progress`, and you watch it happen.
 
 ## What you will see
 
-Hermes's own UI shows each progress report as it happens — that is the
-live thinking trace. Ask it anytime: *"what's your progress on this?"*
-and it answers from `get_status`.
+Two ways to watch, same underlying reports:
+
+**Transcript path.** Hermes's own UI shows each progress report as it
+happens — that is the live thinking trace. Ask it anytime: *"what's your
+progress on this?"* and it answers from `get_status`.
+
+**Graphical path.** Install the unofficial dashboard plugin
+(`packages/hermes-plugin/`, run `install.sh`) into your Hermes copy, then
+run `agent-progress dashboard` and paste the one-launch token it prints.
+Hermes's reports render live in the dashboard — bar, stage ticker, ETA
+that moves — while the transcript stays the detailed view.
 
 ## Honest limits
 
@@ -43,7 +51,8 @@ and it answers from `get_status`.
   report what it knows about its own work.
 - ETAs are estimates and will move. `null` means "I don't know", and the
   skill instructs Hermes never to fabricate one.
-- A graphical live widget (bar + mascot rendering Hermes's feed in
-  real time) needs the v1 network relay, which is out of scope for this
-  project. The protocol, the server, and this integration are the
-  foundation it would build on.
+- The dashboard renders what Hermes reports — nothing more. If a stage
+  name is vague or a percent looks optimistic, that is Hermes's own
+  estimate, not a measurement. (An earlier version of this file said a
+  graphical view needed an out-of-scope network relay; the local
+  dashboard now covers that — local-only, no network.)

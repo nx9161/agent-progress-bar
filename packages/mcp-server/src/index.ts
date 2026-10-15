@@ -5,6 +5,7 @@
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { InMemoryProgressStore } from "./store.js";
+import { EventLog } from "./event-log.js";
 import { createServer } from "./server.js";
 
 const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
@@ -34,11 +35,23 @@ function log(level: LogLevel, msg: string, fields: Record<string, unknown> = {})
 
 async function main(): Promise<void> {
   const store = new InMemoryProgressStore();
-  const server = createServer(store);
+  // Universal event substrate. Degradation, not death: if the log cannot
+  // start (unwritable dir, symlink refusal, relative override), the server
+  // still serves tools — just without the JSONL sink.
+  let eventLog: EventLog | undefined;
+  try {
+    eventLog = new EventLog();
+  } catch (err) {
+    log("warn", "event log disabled; continuing without event sink", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  const server = createServer(store, { eventLog });
   const transport = new StdioServerTransport();
 
   const shutdown = (signal: string): void => {
     log("info", "shutting down", { signal });
+    eventLog?.close();
     store.close();
     process.exit(0);
   };

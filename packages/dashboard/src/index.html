@@ -1,0 +1,80 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- UAPB live dashboard — localhost companion for the Universal Agent
+     Progress Bar. Renders every live agent session from the local SSE
+     stream served by `agent-progress dashboard`. SELF-REPORTED DATA ONLY.
+     This is the build source. scripts/build-dashboard.js inlines the
+     CSS/JS and injects the CSP meta (script + document style + widget
+     shadow style hashes) into packages/dashboard/dist/index.html. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UAPB Live Dashboard — every agent session, one screen</title>
+<meta name="description" content="Localhost dashboard for the Universal Agent Progress Bar: every live agent session rendered as a row on hairlines. Self-reported thinking — agents report their own progress; estimates move.">
+<!--UAPB:HEAD-EXTRAS-->
+<!--UAPB:STYLES-->
+</head>
+<body>
+<div class="page">
+
+  <header class="topbar">
+    <div class="wordmark">UAPB <span class="wordmark-sub">Live Progress Dashboard</span></div>
+    <div class="stream-health" id="streamHealth" role="status">connecting&hellip;</div>
+  </header>
+
+  <p class="honesty">Self-reported thinking &mdash; agents report their own progress; estimates move.</p>
+
+  <div class="filters" role="group" aria-label="Session filter">
+    <button type="button" class="chip" data-filter="all" aria-pressed="true">All</button>
+    <button type="button" class="chip" data-filter="active" aria-pressed="false">Active</button>
+    <button type="button" class="chip" data-filter="paused" aria-pressed="false">Paused</button>
+    <button type="button" class="chip" data-filter="finished" aria-pressed="false">Finished</button>
+  </div>
+
+  <main>
+    <div id="errorBox" class="error-box" hidden>
+      <p class="error-title" id="errorTitle">The stream is unreachable.</p>
+      <p class="error-hint">Start the dashboard server with <code>agent-progress dashboard</code>, then open the URL it prints (it carries this page&rsquo;s token).</p>
+      <button type="button" id="retryBtn" class="btn btn-primary">Retry</button>
+    </div>
+
+    <div id="loadingBox" aria-label="Loading sessions"></div>
+
+    <div id="emptyBox" class="empty" hidden>
+      <span class="mascot-frame is-rest" aria-hidden="true">
+        <span class="mascot">
+          <span class="mascot-antenna"></span>
+          <span class="mascot-tip"></span>
+          <span class="mascot-body"></span>
+          <span class="mascot-eye left"></span>
+          <span class="mascot-eye right"></span>
+        </span>
+      </span>
+      <p class="empty-title">No live sessions</p>
+      <p class="empty-hint">Run <code>agent-progress dashboard</code> and let an agent report progress to see it here.</p>
+    </div>
+
+    <section id="activeSection" aria-label="Live sessions">
+      <div id="activeList"></div>
+    </section>
+
+    <section id="finishedSection" aria-label="Recently finished" hidden>
+      <h2 class="section-title">Recently finished</h2>
+      <div id="finishedList"></div>
+    </section>
+  </main>
+
+  <noscript>
+    <div class="error-box">
+      <p class="error-title">This dashboard needs JavaScript.</p>
+      <p class="error-hint">It renders a live event stream served on localhost by <code>agent-progress dashboard</code>.</p>
+    </div>
+  </noscript>
+</div>
+
+<div id="srAnnouncer" class="visually-hidden" aria-live="assertive"></div>
+
+<!--UAPB:SCRIPTS-->
+</body>
+</html>

@@ -26,6 +26,16 @@ Any task with 3+ steps, or anything lasting longer than ~30 seconds:
 - `eta_seconds`: seconds until you expect to finish, or `null` when you genuinely do not know. **Never fabricate an ETA** — `null` is always acceptable and always honest.
 - `message` (optional): one-line detail for the user, max 280 chars.
 
+## Identity
+
+- `task_id` convention: `hermes:<task-slug>`, e.g.
+  `hermes:summarize-commits`. The `agent:` prefix is the fallback source
+  of the agent label in the local event log.
+- `UAPB_AGENT: "hermes"` (set in `config-snippet.yaml`) is the primary
+  identity source — keep it.
+- `session_id` in the event log equals your `task_id`: one session per
+  task.
+
 ## What this is
 
 This is self-reported thinking: you telling the user what you are doing,

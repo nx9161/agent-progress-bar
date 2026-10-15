@@ -39,14 +39,27 @@ jobs:
       - name: Stdout-purity test
         working-directory: packages/mcp-server
         run: npm test
+        # ^ covers ALL mcp-server test files (test/*.test.ts), not just stdout-purity
 
       - name: Inspector smoke test
         run: |
           npx -y @modelcontextprotocol/inspector@2.11.0 --cli node packages/mcp-server/dist/index.js --method tools/list
           npx -y @modelcontextprotocol/inspector@2.11.0 --cli node packages/mcp-server/dist/index.js --method tools/call --tool-name report_progress --tool-arg task_id=ci:smoke --tool-arg percent=42 --tool-arg eta_seconds=30 --tool-arg stage="CI smoke"
 
+      - name: CLI tests (dashboard server)
+        working-directory: packages/cli
+        run: npm test
+        # ^ covers the dashboard-server hermetic tests (loopback bind, token
+        #   gating, CORS, SSE replay) — test/*.test.ts
+
       - name: Build demo page
         run: node scripts/build-demo.js
+
+      - name: Build dashboard page
+        # Self-verification is the CSP gate: the build re-hashes the output
+        # and throws on any mismatch (script + document style + widget
+        # shadow style). Fails loudly on drift.
+        run: node scripts/build-dashboard.js
 
       - name: Audit gate (mcp-server)
         working-directory: packages/mcp-server

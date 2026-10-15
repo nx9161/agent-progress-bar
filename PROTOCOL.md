@@ -32,6 +32,17 @@ not injection into their apps.
 - Consumers MUST ignore unknown fields.
 - Producers MUST NOT remove or rename fields except with a `proto` major bump.
 
+## Event sink (local, additive)
+
+The MCP server also appends every `report_progress` call to a local JSONL
+file (`~/.agent-progress/events-YYYY-MM-DD.jsonl`: directory mode `0700`,
+file mode `0600`, 7-day retention; `AGENT_PROGRESS_EVENTS_DIR` overrides
+the directory). For the dashboard, the sink stamps each record with two
+additive labels — `agent` (from the record, from `UAPB_AGENT`, or from the
+`agent:` prefix of `task_id` as fallback) and `session_id` (defaults to
+`task_id`). These are **not** wire fields: the wire contract is frozen at
+`proto: 1`, and consumers ignore unknown fields per the compatibility rule.
+
 ## Example
 
 ```json
