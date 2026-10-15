@@ -9,7 +9,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Universal Agent Progress Bar — Concept Demo</title>
 <meta name="description" content="Concept demo of an open, agent-agnostic progress layer: a live 0-100% progress bar with countdown that any AI agent can report through. Simulated run — no AI is connected.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-CZiwGGBSyQxBJCKqOjOHb78KLYIApVvmBO2BNWzYslM='; style-src 'sha256-xrSZiOF7+osLJUFeAkYSN3EkLErTAeq9FZ26cs+js+8='; object-src 'none'; base-uri 'self'; frame-ancestors 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-0cWmkcPMqGtMpgFN1WnTUYps949vVDYHy8AEWpu9lvM='; style-src 'sha256-PDJc5rZXmvcCCfBEK2ZbmVz58l1Ml1/h+0BIRn7B0aA='; object-src 'none'; base-uri 'self'; frame-ancestors 'none'">
 <style>
 /* SPDX-License-Identifier: MIT */
 /* UAPB concept demo styles. Dark tokens per build spec §6. */
@@ -196,6 +196,152 @@ body {
   50% { opacity: 1; }
 }
 
+/* ---- pixel mascot (original art, demo chrome only) ---- */
+.mascot {
+  position: relative;
+  width: 30px;
+  height: 38px;
+  flex: none;
+  animation: mascot-bob 2.4s ease-in-out infinite;
+}
+
+.mascot-body {
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 3px;
+  height: 3px;
+  box-shadow:
+    6px 0px 0 #E9EEF5,
+    9px 0px 0 #E9EEF5,
+    12px 0px 0 #E9EEF5,
+    15px 0px 0 #E9EEF5,
+    18px 0px 0 #E9EEF5,
+    21px 0px 0 #E9EEF5,
+    3px 3px 0 #E9EEF5,
+    6px 3px 0 #E9EEF5,
+    9px 3px 0 #E9EEF5,
+    12px 3px 0 #E9EEF5,
+    15px 3px 0 #E9EEF5,
+    18px 3px 0 #E9EEF5,
+    21px 3px 0 #E9EEF5,
+    24px 3px 0 #E9EEF5,
+    0px 6px 0 #E9EEF5,
+    3px 6px 0 #E9EEF5,
+    6px 6px 0 #E9EEF5,
+    9px 6px 0 #E9EEF5,
+    12px 6px 0 #E9EEF5,
+    15px 6px 0 #E9EEF5,
+    18px 6px 0 #E9EEF5,
+    21px 6px 0 #E9EEF5,
+    24px 6px 0 #E9EEF5,
+    27px 6px 0 #E9EEF5,
+    0px 9px 0 #E9EEF5,
+    3px 9px 0 #E9EEF5,
+    6px 9px 0 #E9EEF5,
+    9px 9px 0 #E9EEF5,
+    12px 9px 0 #E9EEF5,
+    15px 9px 0 #E9EEF5,
+    18px 9px 0 #E9EEF5,
+    21px 9px 0 #E9EEF5,
+    24px 9px 0 #E9EEF5,
+    27px 9px 0 #E9EEF5,
+    0px 12px 0 #E9EEF5,
+    3px 12px 0 #E9EEF5,
+    6px 12px 0 #E9EEF5,
+    9px 12px 0 #E9EEF5,
+    12px 12px 0 #E9EEF5,
+    15px 12px 0 #E9EEF5,
+    18px 12px 0 #E9EEF5,
+    21px 12px 0 #E9EEF5,
+    24px 12px 0 #E9EEF5,
+    27px 12px 0 #E9EEF5,
+    0px 15px 0 #E9EEF5,
+    3px 15px 0 #E9EEF5,
+    6px 15px 0 #E9EEF5,
+    9px 15px 0 #E9EEF5,
+    12px 15px 0 #E9EEF5,
+    15px 15px 0 #E9EEF5,
+    18px 15px 0 #E9EEF5,
+    21px 15px 0 #E9EEF5,
+    24px 15px 0 #E9EEF5,
+    27px 15px 0 #E9EEF5,
+    3px 18px 0 #E9EEF5,
+    6px 18px 0 #E9EEF5,
+    9px 18px 0 #E9EEF5,
+    12px 18px 0 #E9EEF5,
+    15px 18px 0 #E9EEF5,
+    18px 18px 0 #E9EEF5,
+    21px 18px 0 #E9EEF5,
+    24px 18px 0 #E9EEF5,
+    3px 21px 0 #E9EEF5,
+    6px 21px 0 #E9EEF5,
+    9px 21px 0 #E9EEF5,
+    12px 21px 0 #E9EEF5,
+    15px 21px 0 #E9EEF5,
+    18px 21px 0 #E9EEF5,
+    21px 21px 0 #E9EEF5,
+    24px 21px 0 #E9EEF5,
+    6px 24px 0 #E9EEF5,
+    9px 24px 0 #E9EEF5,
+    12px 24px 0 #E9EEF5,
+    15px 24px 0 #E9EEF5,
+    18px 24px 0 #E9EEF5,
+    21px 24px 0 #E9EEF5,
+    9px 27px 0 #E9EEF5,
+    12px 27px 0 #E9EEF5,
+    15px 27px 0 #E9EEF5,
+    18px 27px 0 #E9EEF5;
+}
+
+.mascot-eye {
+  position: absolute;
+  top: 17px;
+  width: 6px;
+  height: 8px;
+  background: #0B0E14;
+  animation: mascot-blink 4.2s infinite;
+  transform-origin: center;
+}
+
+.mascot-eye.left { left: 6px; }
+.mascot-eye.right { left: 18px; }
+
+.mascot-antenna {
+  position: absolute;
+  top: 5px;
+  left: 13px;
+  width: 3px;
+  height: 6px;
+  background: #E9EEF5;
+}
+
+.mascot-tip {
+  position: absolute;
+  top: 0;
+  left: 12px;
+  width: 5px;
+  height: 5px;
+  background: var(--uapb-done);
+  animation: mascot-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes mascot-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes mascot-blink {
+  0%, 91%, 100% { transform: scaleY(1); }
+  94% { transform: scaleY(0.12); }
+  97% { transform: scaleY(1); }
+}
+
+@keyframes mascot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 .progress-module uapb-progress { display: block; }
 
 .eta-caption {
@@ -353,6 +499,7 @@ a:focus-visible, button:focus-visible {
 /* ---- reduced motion ---- */
 @media (prefers-reduced-motion: reduce) {
   .dot { animation: none; opacity: 0.8; }
+  .mascot, .mascot-eye, .mascot-tip { animation: none; }
   * { transition: none !important; }
 }
 
@@ -396,13 +543,20 @@ a:focus-visible, button:focus-visible {
 
       <div class="agent-card">
         <div class="thinking-row" aria-hidden="true">
+          <span class="mascot">
+            <span class="mascot-antenna"></span>
+            <span class="mascot-tip"></span>
+            <span class="mascot-body"></span>
+            <span class="mascot-eye left"></span>
+            <span class="mascot-eye right"></span>
+          </span>
           <span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
           <span class="thinking-label">Thinking&hellip;</span>
         </div>
 
         <div class="progress-module">
           <uapb-progress id="demoBar"></uapb-progress>
-          <div class="eta-caption">simulated estimate</div>
+          <div class="eta-caption">simulated estimate &middot; can change</div>
         </div>
       </div>
     </section>
@@ -891,6 +1045,14 @@ a:focus-visible, button:focus-visible {
   var ALLOWED_DURATIONS = { 15: true, 30: true, 45: true, 60: true };
   var MILESTONES = [25, 50, 75, 100];
 
+  // Estimates move. Twice per run the simulated agent revises its ETA —
+  // the countdown visibly jumps, demonstrating the honesty rule:
+  // eta_seconds is a live estimate, never a promise.
+  var REESTIMATES = [
+    { at: 0.45, bias: 1.5, stage: "Recalibrating estimate\u2026", holdMs: 2600 },
+    { at: 0.78, bias: 0.6, stage: "Ahead of schedule\u2026", holdMs: 2200 },
+  ];
+
   var bar = document.getElementById("demoBar");
   var restartBtn = document.getElementById("restartBtn");
   var compactBtn = document.getElementById("compactBtn");
@@ -935,6 +1097,10 @@ a:focus-visible, button:focus-visible {
     this.pauseStart = 0;
     this.announced = {};
     this.running = false;
+    this.etaBias = 1;
+    this.reestimateIdx = 0;
+    this.reestimateStage = null;
+    this.reestimateUntil = 0;
     var self = this;
     this.onVisibility = function () {
       if (document.hidden) {
@@ -954,6 +1120,10 @@ a:focus-visible, button:focus-visible {
     this.pausedTotal = 0;
     this.pauseStart = 0;
     this.announced = {};
+    this.etaBias = 1;
+    this.reestimateIdx = 0;
+    this.reestimateStage = null;
+    this.reestimateUntil = 0;
     this.running = true;
     document.addEventListener("visibilitychange", this.onVisibility);
     this.el.setProgress({ percent: 0, etaSeconds: this.totalMs / 1000, stage: window.UAPB.STAGES[0] });
@@ -1007,12 +1177,32 @@ a:focus-visible, button:focus-visible {
       return;
     }
     var sample = window.UAPB.sampleTimeline(this.timeline, Math.max(0, elapsed));
+    var progressRatio = elapsed / this.totalMs;
+
+    // Fire re-estimates as the run crosses each threshold: the ETA bias
+    // changes and the stage ticker briefly names the revision.
+    while (
+      this.reestimateIdx < REESTIMATES.length &&
+      progressRatio >= REESTIMATES[this.reestimateIdx].at
+    ) {
+      var rev = REESTIMATES[this.reestimateIdx];
+      this.etaBias = rev.bias;
+      this.reestimateStage = rev.stage;
+      this.reestimateUntil = now + rev.holdMs;
+      this.reestimateIdx++;
+    }
+
     var remainingMs = Math.max(0, this.totalMs - elapsed);
+    var stage =
+      now < this.reestimateUntil && this.reestimateStage
+        ? this.reestimateStage
+        : sample.stage;
     // Math.ceil(remainingMs/1000) inside formatCountdown hits 0:00 exactly.
+    // etaBias shapes the DISPLAYED estimate only — finish() stays exact.
     this.el.setProgress({
       percent: sample.percent,
-      etaSeconds: remainingMs / 1000,
-      stage: sample.stage,
+      etaSeconds: (remainingMs / 1000) * this.etaBias,
+      stage: stage,
     });
     var whole = Math.round(sample.percent);
     for (var i = 0; i < MILESTONES.length; i++) {
