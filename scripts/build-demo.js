@@ -46,11 +46,35 @@ function main() {
   const cssHash = sha256Base64(cssInlined);
   const jsHash = sha256Base64(jsInlined);
 
+  // The widget injects a <style> into its shadow DOM at runtime
+  // (uapb-widget.js: style.textContent = CSS). That text is NOT part of
+  // the document <style>, so it needs its own style-src hash or the
+  // browser blocks it and the bar renders unstyled. Extract the CSS array
+  // literal from the widget source and evaluate it to the EXACT runtime
+  // string (array .join("\n")), then hash that.
+  const cssArrayMatch = widget.match(/var CSS = ([\s\S]*?)\]\.join\("\\n"\);/);
+  if (!cssArrayMatch) {
+    throw new Error(
+      "build failed: could not extract widget shadow CSS array from uapb-widget.js"
+    );
+  }
+  let shadowCssArray;
+  try {
+    shadowCssArray = new Function("return (" + cssArrayMatch[1] + "])")();
+  } catch (e) {
+    throw new Error("build failed: could not evaluate widget CSS array: " + e.message);
+  }
+  if (!Array.isArray(shadowCssArray) || shadowCssArray.length === 0) {
+    throw new Error("build failed: widget CSS array extraction produced no strings");
+  }
+  const shadowCss = shadowCssArray.join("\n");
+  const shadowCssHash = sha256Base64(shadowCss);
+
   const csp =
     "<meta http-equiv=\"Content-Security-Policy\" content=\"" +
     "default-src 'none'; " +
     "script-src 'sha256-" + jsHash + "'; " +
-    "style-src 'sha256-" + cssHash + "'; " +
+    "style-src 'sha256-" + cssHash + "' 'sha256-" + shadowCssHash + "'; " +
     "object-src 'none'; " +
     "base-uri 'self'; " +
     "frame-ancestors 'none'\">";
@@ -86,17 +110,32 @@ function main() {
     throw new Error("self-verification failed: CSP meta not found");
   }
   const scriptHashMatch = cspMatch[1].match(/script-src 'sha256-([^']+)'/);
-  const styleHashMatch = cspMatch[1].match(/style-src 'sha256-([^']+)'/);
-  if (!scriptHashMatch || !styleHashMatch) {
-    throw new Error("self-verification failed: CSP hashes not found");
+  // style-src carries TWO hashes: the document <style> and the widget's
+  // runtime-injected shadow <style>. Both must verify.
+  const styleSrcSection = cspMatch[1].match(/style-src ([^;]+);/);
+  const styleHashes = styleSrcSection
+    ? [...styleSrcSection[1].matchAll(/'sha256-([^']+)'/g)].map((m) => m[1])
+    : [];
+  if (!scriptHashMatch || styleHashes.length !== 2) {
+    throw new Error("self-verification failed: CSP hashes not found (want 1 script + 2 style)");
   }
   const styleTextMatch = written.match(/<style>([\s\S]*)<\/style>/);
   const scriptTextMatch = written.match(/<script>([\s\S]*)<\/script>/);
   if (!styleTextMatch || !scriptTextMatch) {
     throw new Error("self-verification failed: inlined style/script not found");
   }
-  if (sha256Base64(styleTextMatch[1]) !== styleHashMatch[1]) {
-    throw new Error("self-verification failed: style-src hash mismatch");
+  if (sha256Base64(styleTextMatch[1]) !== styleHashes[0]) {
+    throw new Error("self-verification failed: document style-src hash mismatch");
+  }
+  // Re-derive the shadow CSS from the widget source exactly as the build
+  // did, and require its hash to be the second style-src entry.
+  const verifyArrayMatch = widget.match(/var CSS = ([\s\S]*?)\]\.join\("\\n"\);/);
+  if (!verifyArrayMatch) {
+    throw new Error("self-verification failed: widget CSS array not found");
+  }
+  const verifyCss = new Function("return (" + verifyArrayMatch[1] + "])")().join("\n");
+  if (sha256Base64(verifyCss) !== styleHashes[1]) {
+    throw new Error("self-verification failed: shadow style-src hash mismatch");
   }
   if (sha256Base64(scriptTextMatch[1]) !== scriptHashMatch[1]) {
     throw new Error("self-verification failed: script-src hash mismatch");
@@ -104,7 +143,8 @@ function main() {
 
   console.log("built " + outPath + " (" + Buffer.byteLength(html, "utf8") + " bytes)");
   console.log("csp script-src sha256-" + jsHash);
-  console.log("csp style-src  sha256-" + cssHash);
+  console.log("csp style-src  sha256-" + cssHash + " (document)");
+  console.log("csp style-src  sha256-" + shadowCssHash + " (widget shadow)");
   console.log("self-verification passed: CSP hashes match inlined bytes");
 }
 
