@@ -1,4 +1,5 @@
 # Universal Agent Progress Bar (UAPB)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 An open-source (MIT), agent-agnostic progress layer: a live demo website, a
 progress-reporting protocol, an MCP-server "connector", an embeddable
@@ -6,6 +7,10 @@ widget, and a live layer — a local event sink plus a localhost dashboard —
 so **any AI agent with visible thinking** (ChatGPT, DeepSeek, Kimi,
 Claude, Gemini) can show the same live module: a 0–100% bar, a % counter, a
 countdown, and a stage ticker.
+
+## Live Demo
+
+**[https://nx9161.github.io/agent-progress-bar/](https://nx9161.github.io/agent-progress-bar/)**
 
 ## The hard truth — read this first
 
