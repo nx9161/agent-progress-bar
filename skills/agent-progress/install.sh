@@ -63,6 +63,7 @@ detect() {
   { command -v copilot >/dev/null 2>&1 || [[ -d "$HOME_DIR/.copilot" ]]; } && echo "copilot"
   { command -v gemini >/dev/null 2>&1 || [[ -d "$HOME_DIR/.gemini" ]]; } && echo "gemini"
   { command -v opencode >/dev/null 2>&1 || [[ -d "$HOME_DIR/.config/opencode" ]]; } && echo "opencode"
+  return 0
 }
 
 print_mcp_config() {
