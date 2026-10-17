@@ -36,6 +36,9 @@ jobs:
       - name: Contract tests
         run: node scripts/contract-test.js
 
+      - name: Skill install test (hermetic, fake HOME)
+        run: bash skills/agent-progress/test/install.test.sh
+
       - name: Stdout-purity test
         working-directory: packages/mcp-server
         run: npm test

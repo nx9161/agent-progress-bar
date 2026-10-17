@@ -120,7 +120,27 @@ Secondary — iframe (sandboxed, origin allowlist, default deny):
 See `examples/embed-snippet.html` for the full postMessage pattern
 (explicit targetOrigin — never `'*'`).
 
-### 4. Watch the live layer (dashboard + event log)
+### 4. Install it as an agent skill (AI agents)
+
+`skills/agent-progress/` is a ready-to-install skill in the open Agent
+Skills format (`SKILL.md` + YAML frontmatter), for Claude Code, OpenAI
+Codex, Cursor, VS Code + GitHub Copilot, Gemini CLI, OpenCode, and any
+standard-compliant harness. The skill teaches the agent when and how to
+report progress through the MCP server (start / step boundaries / done,
+honest ETAs only — `null` over a guess).
+
+```sh
+skills/agent-progress/install.sh          # skill -> every detected harness
+skills/agent-progress/install.sh --mcp     # ...plus npm install the MCP server
+skills/agent-progress/install.sh --project # repo-local install instead of global
+```
+
+Then register the MCP server in your client (the installer prints the
+config) and restart it. Manual steps and per-client config snippets:
+`skills/agent-progress/references/install.md`. Publish-ready for the
+skills.sh marketplace as `nx9161/agent-progress` (owner-gated).
+
+### 5. Watch the live layer (dashboard + event log)
 
 Once an agent reports through the MCP server, its thinking trace lands in
 the local event log — watch it live:
@@ -211,6 +231,7 @@ packages/dashboard/  localhost dashboard + SSE stream (127.0.0.1, token-gated /a
 packages/hermes-plugin/ unofficial Hermes dashboard plugin (install via install.sh)
 packages/widget/     <uapb-progress> custom element + iframe wrapper
 packages/cli/        internal dev CLI: agent-progress dashboard / agent-progress events
+skills/agent-progress/ installable Agent Skills package (SKILL.md, install.sh, references, tests)
 packages/web/        concept demo source (demo.js is disposable in v1)
 examples/            iframe embed snippet, examples/hermes/ (config + skill for Hermes self-reporting)
 scripts/             zero-dep demo bundler -> dist/index.html; build-dashboard.js -> dashboard bundle
