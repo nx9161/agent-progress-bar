@@ -295,6 +295,63 @@ button:focus-visible, a:focus-visible {
   color: var(--uapb-muted);
 }
 
+/* ---- all tasks section ---- */
+.section-count {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.section-note {
+  margin: 6px 0 4px;
+  font-size: 0.85em;
+  color: var(--uapb-muted);
+  max-width: 65ch;
+}
+.task-row {
+  padding: 10px 0 12px;
+  border-bottom: 1px solid var(--uapb-border);
+}
+.task-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.task-title {
+  font-family: var(--uapb-mono, ui-monospace, monospace);
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}
+.task-eta {
+  margin-left: auto;
+  font-family: var(--uapb-mono, ui-monospace, monospace);
+  font-size: 0.85em;
+  color: var(--uapb-muted);
+  white-space: nowrap;
+}
+.task-bar {
+  margin: 6px 0;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(127, 127, 127, 0.25);
+  overflow: hidden;
+}
+.task-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--uapb-text);
+}
+.task-bar-fill.is-done { background: var(--uapb-done); }
+.task-meta {
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}
+.task-meta-dim {
+  font-family: var(--uapb-mono, ui-monospace, monospace);
+  font-size: 0.78em;
+  color: var(--uapb-muted);
+  margin-top: 2px;
+}
+
 /* ---- empty / loading / error states ---- */
 .empty {
   padding: 48px 0;

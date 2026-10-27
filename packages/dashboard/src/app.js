@@ -3,6 +3,8 @@
  * Consumes the localhost SSE stream from `agent-progress dashboard`:
  *   GET /api/stream?token=<128b>&resume=<id>   (SSE, replay then live)
  *   GET /api/snapshot?token=                  (latest event per task)
+ *   GET /api/tasks?token=                     (every task in the log,
+ *                                              with a display ETA each)
  * Event shape: {proto:1, task_id, percent, eta_seconds, stage, message?,
  *   status, complete, timestamp, agent, session_id} plus occasional
  *   {type:"dropped", task_id, dropped_count, ...} markers.
@@ -537,6 +539,139 @@
     );
   }
 
+  /* ---------- all tasks (GET /api/tasks) ----------
+   * Every task in the retained event log (all days on disk), not just
+   * live sessions: status, bar, stage, message, timing, event count and
+   * an ETA for each — the agent's own reported ETA when it gave one,
+   * "~m:ss est." when the server derived one from the task's own pace,
+   * "done" for finished tasks, "estimating…" when there is no honest
+   * number yet. Polled; the live view above stays SSE-driven. */
+  var allTasksSection = null;
+  var allTasksList = null;
+  var allTasksCount = null;
+  var ALL_TASKS_POLL_MS = 5000;
+
+  function fmtDuration(sec) {
+    sec = Math.max(0, Math.round(sec));
+    if (sec < 60) return sec + "s";
+    var m = Math.floor(sec / 60);
+    if (m < 60) return m + "m " + (sec % 60) + "s";
+    var h = Math.floor(m / 60);
+    return h + "h " + (m % 60) + "m";
+  }
+
+  function fmtClock(ts) {
+    var d = new Date(ts);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function etaTextFor(task, now) {
+    if (task.eta_source === "done") return "done";
+    if (typeof task.eta_seconds !== "number") return "estimating…";
+    if (task.eta_source === "reported") {
+      var lastMs = Date.parse(task.last_seen);
+      var remaining = task.eta_seconds;
+      if (!isNaN(lastMs)) remaining -= (now - lastMs) / 1000;
+      return "eta " + fmtCountdown(Math.max(0, remaining));
+    }
+    if (task.eta_source === "estimated")
+      return "~" + fmtCountdown(task.eta_seconds) + " est.";
+    return "estimating…";
+  }
+
+  function validTaskSummary(t) {
+    if (!t || typeof t !== "object") return null;
+    if (typeof t.task_id !== "string" || !t.task_id) return null;
+    if (typeof t.percent !== "number" || !isFinite(t.percent)) return null;
+    if (typeof t.status !== "string" || !t.status) return null;
+    if (typeof t.first_seen !== "string" || typeof t.last_seen !== "string")
+      return null;
+    return t;
+  }
+
+  function renderAllTasks(tasks) {
+    if (!allTasksList) return;
+    while (allTasksList.firstChild)
+      allTasksList.removeChild(allTasksList.firstChild);
+    var now = Date.now();
+    for (var i = 0; i < tasks.length; i++) {
+      var t = tasks[i];
+      var row = el("div", "task-row");
+
+      var head = el("div", "task-head");
+      var pillCls =
+        t.status === "done" || t.status === "error" || t.status === "paused"
+          ? "pill pill-" + t.status
+          : "pill pill-running";
+      head.appendChild(el("span", pillCls, t.status.toUpperCase()));
+      var who = (t.agent ? t.agent + " · " : "") + t.task_id;
+      var title = el("span", "task-title", who);
+      head.appendChild(title);
+      head.appendChild(el("span", "task-eta", etaTextFor(t, now)));
+      row.appendChild(head);
+
+      var bar = el("div", "task-bar");
+      var fill = el("div", "task-bar-fill");
+      fill.style.width = Math.max(0, Math.min(100, t.percent)) + "%";
+      if (t.status === "done") fill.setAttribute("class", "task-bar-fill is-done");
+      bar.appendChild(fill);
+      row.appendChild(bar);
+
+      var line1 = Math.round(t.percent) + "%";
+      if (t.stage) line1 += " · " + t.stage;
+      if (t.message) line1 += " — " + t.message;
+      row.appendChild(el("div", "task-meta", line1));
+
+      var bits = [];
+      bits.push("started " + fmtClock(t.first_seen));
+      bits.push("updated " + fmtClock(t.last_seen));
+      bits.push(
+        (t.status === "done" ? "took " : "elapsed ") +
+          fmtDuration(t.duration_seconds || 0)
+      );
+      bits.push(t.event_count + (t.event_count === 1 ? " event" : " events"));
+      if (Array.isArray(t.stages) && t.stages.length > 1) {
+        var names = [];
+        for (var j = 0; j < t.stages.length; j++) names.push(t.stages[j].stage);
+        bits.push("stages: " + names.join(" → "));
+      }
+      row.appendChild(el("div", "task-meta task-meta-dim", bits.join(" · ")));
+
+      allTasksList.appendChild(row);
+    }
+    if (allTasksCount)
+      allTasksCount.textContent =
+        "— " + tasks.length + (tasks.length === 1 ? " task" : " tasks");
+    if (allTasksSection) allTasksSection.hidden = tasks.length === 0;
+  }
+
+  function loadAllTasks() {
+    if (!TOKEN) return;
+    fetch("api/tasks?token=" + encodeURIComponent(TOKEN))
+      .then(function (res) {
+        if (!res.ok) throw new Error("tasks " + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        var list = data && Array.isArray(data.tasks) ? data.tasks : [];
+        var valid = [];
+        for (var i = 0; i < list.length; i++) {
+          var t = validTaskSummary(list[i]);
+          if (t) valid.push(t);
+        }
+        renderAllTasks(valid);
+      })
+      .catch(function () {
+        /* auxiliary view: a failed poll keeps the last good render */
+      });
+  }
+
   /* ---------- snapshot + SSE ---------- */
   function showError(title) {
     errorVisible = true;
@@ -681,6 +816,9 @@
     activeSection = document.getElementById("activeSection");
     finishedSection = document.getElementById("finishedSection");
     finishedList = document.getElementById("finishedList");
+    allTasksSection = document.getElementById("allTasksSection");
+    allTasksList = document.getElementById("allTasksList");
+    allTasksCount = document.getElementById("allTasksCount");
     announcer = document.getElementById("srAnnouncer");
 
     var chips = document.querySelectorAll(".chip[data-filter]");
@@ -712,6 +850,8 @@
 
     renderSkeletons();
     loadSnapshot();
+    loadAllTasks();
+    setInterval(loadAllTasks, ALL_TASKS_POLL_MS);
     setInterval(tick, TICK_MS);
   }
 

@@ -17,6 +17,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  aggregateTasks,
+  deriveEtaSeconds,
   eventsFile,
   startDashboardServer,
   type DashboardHandle,
@@ -394,4 +396,166 @@ describe("dashboard-server", () => {
       assert.equal(datas.length, 2);
     }
   );
+
+  test("deriveEtaSeconds: reported wins, done is 0, pace estimate is labeled, thin signal stays unknown", () => {
+    const t0 = 1_700_000_000_000;
+    // Reported ETA is never blended with the estimate.
+    assert.deepEqual(
+      deriveEtaSeconds({
+        status: "running",
+        percent: 50,
+        eta_reported_seconds: 42,
+        first_seen_ms: t0,
+        first_percent: 0,
+        event_count: 5,
+        now_ms: t0 + 100_000,
+      }),
+      { eta_seconds: 42, eta_source: "reported" }
+    );
+    // Done tasks need no ETA.
+    assert.deepEqual(
+      deriveEtaSeconds({
+        status: "done",
+        percent: 100,
+        eta_reported_seconds: null,
+        first_seen_ms: t0,
+        first_percent: 0,
+        event_count: 5,
+        now_ms: t0 + 100_000,
+      }),
+      { eta_seconds: 0, eta_source: "done" }
+    );
+    // Pace estimate: 100s elapsed to reach 50% -> ~100s remaining.
+    assert.deepEqual(
+      deriveEtaSeconds({
+        status: "running",
+        percent: 50,
+        eta_reported_seconds: null,
+        first_seen_ms: t0,
+        first_percent: 0,
+        event_count: 5,
+        now_ms: t0 + 100_000,
+      }),
+      { eta_seconds: 100, eta_source: "estimated" }
+    );
+    // Too little progress: no honest number exists.
+    assert.deepEqual(
+      deriveEtaSeconds({
+        status: "running",
+        percent: 2,
+        eta_reported_seconds: null,
+        first_seen_ms: t0,
+        first_percent: 0,
+        event_count: 5,
+        now_ms: t0 + 100_000,
+      }),
+      { eta_seconds: null, eta_source: "unknown" }
+    );
+    // A single event is not a pace.
+    assert.deepEqual(
+      deriveEtaSeconds({
+        status: "running",
+        percent: 60,
+        eta_reported_seconds: null,
+        first_seen_ms: t0,
+        first_percent: 60,
+        event_count: 1,
+        now_ms: t0 + 100_000,
+      }),
+      { eta_seconds: null, eta_source: "unknown" }
+    );
+  });
+
+  test("/api/tasks aggregates every retained day, with an ETA per task", async () => {
+    const dir = tempDir();
+    const oldDay = join(dir, "events-2020-01-01.jsonl");
+    writeFileSync(
+      oldDay,
+      [
+        JSON.stringify({
+          proto: 1,
+          task_id: "old:done",
+          percent: 10,
+          eta_seconds: null,
+          stage: "Working",
+          timestamp: "2020-01-01T00:00:00.000Z",
+          agent: "test",
+        }),
+        JSON.stringify({
+          proto: 1,
+          task_id: "old:done",
+          percent: 100,
+          eta_seconds: null,
+          stage: "Done",
+          complete: true,
+          timestamp: "2020-01-01T00:02:00.000Z",
+          agent: "test",
+        }),
+      ].join("\n") + "\n",
+      "utf8"
+    );
+    writeEvents(dir, [
+      JSON.stringify({
+        proto: 1,
+        task_id: "live:eta",
+        percent: 40,
+        eta_seconds: 120,
+        stage: "Running",
+        status: "running",
+        timestamp: new Date().toISOString(),
+        agent: "test",
+      }),
+    ]);
+    const h = await start(dir);
+
+    const noToken = await fetchJson(`${h.url}/api/tasks`, LOOPBACK_ORIGIN);
+    assert.equal(noToken.status, 401);
+
+    const { status, body } = await fetchJson(
+      h.url + "/api/tasks?token=" + h.token,
+      LOOPBACK_ORIGIN
+    );
+    assert.equal(status, 200);
+    const b = body as {
+      ok: boolean;
+      count: number;
+      tasks: {
+        task_id: string;
+        status: string;
+        eta_seconds: number | null;
+        eta_source: string;
+        duration_seconds: number;
+        event_count: number;
+      }[];
+    };
+    assert.equal(b.count, 2);
+    // Active tasks sort before finished ones.
+    assert.equal(b.tasks[0].task_id, "live:eta");
+    assert.equal(b.tasks[0].eta_source, "reported");
+    assert.equal(b.tasks[0].eta_seconds, 120);
+    const done = b.tasks.find((t) => t.task_id === "old:done");
+    assert.ok(done);
+    assert.equal(done.status, "done");
+    assert.equal(done.eta_source, "done");
+    assert.equal(done.eta_seconds, 0);
+    assert.equal(done.duration_seconds, 120);
+    assert.equal(done.event_count, 2);
+  });
+
+  test("aggregateTasks skips drop markers and caps stage history", () => {
+    const ev = (stage: string, i: number) => ({
+      task_id: "t:x",
+      percent: i * 2,
+      eta_seconds: null,
+      stage,
+      status: "running",
+      timestamp: new Date(1_700_000_000_000 + i * 1000).toISOString(),
+      agent: "test",
+    });
+    const many = Array.from({ length: 40 }, (_, i) => ev(`s${i}`, i));
+    const out = aggregateTasks(many as never, 1_700_000_100_000);
+    assert.equal(out.length, 1);
+    assert.equal(out[0].stages.length, 25);
+    assert.equal(out[0].event_count, 40);
+  });
 });

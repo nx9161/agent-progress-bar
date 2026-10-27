@@ -18,6 +18,21 @@ The CLI prints a URL carrying a per-run 128-bit token. Open that URL — the das
 
 The dashboard shows exactly what agents report. `eta_seconds: null` renders **"estimating…"** — never a fabricated number. Nothing here measures an agent's real internal state; it is the agent's own claim about itself.
 
+## All tasks
+
+Below the live rows, the **All tasks** section lists *every* task in the local event log — all retained days (7-day retention), not just today's live sessions, and finished tasks stay listed instead of expiring after 10 minutes. Each row shows status, progress bar, stage, message, start/last-update times, duration, event count, stage history, and an ETA. It polls `GET /api/tasks?token=<redacted> every 5 seconds; the endpoint aggregates the JSONL log on the server, one summary per task, active tasks first.
+
+ETA per task, in priority order:
+
+| Source | Rendered as | Meaning |
+|---|---|---|
+| `done` | `done` | Task finished; the row shows its total duration instead |
+| `reported` | live countdown | The agent's own `eta_seconds` from its latest event, decayed by time since that event |
+| `estimated` | `~m:ss est.` | Derived on the server from the task's *own* reported pace: elapsed × remaining ÷ done, rounded to 5s, only with ≥2 events, ≥5% progress, and forward motion |
+| `unknown` | `estimating…` | Too little signal — no number is shown rather than an invented one |
+
+An estimate is never blended with a reported ETA, and the `est.` label is part of the contract: it is a pace projection, not the agent's claim.
+
 ## The tier system
 
 A bar for a 300ms session is noise, so rows are time-tiered by session age:

@@ -19,6 +19,7 @@ import {
   openSync,
   readFileSync,
   readSync,
+  readdirSync,
   statSync,
   watch,
   type FSWatcher,
@@ -161,6 +162,173 @@ export function readEventsFile(file: string): EventWithOffset[] {
     offset += len + 1; // +1 for the stripped newline
   }
   return out;
+}
+
+/** One task, aggregated from every retained event-log day (GET /api/tasks). */
+export interface TaskSummary {
+  task_id: string;
+  agent: string | null;
+  session_id: string | null;
+  status: string;
+  percent: number;
+  stage: string;
+  message: string | null;
+  /** ETA the agent itself reported on its latest event (null = none). */
+  eta_reported_seconds: number | null;
+  /**
+   * The ETA to display: the reported value when present, else a pace
+   * estimate (see deriveEtaSeconds), else 0 for done tasks, else null.
+   */
+  eta_seconds: number | null;
+  /** Where eta_seconds came from — the UI labels estimates as estimates. */
+  eta_source: "reported" | "estimated" | "done" | "unknown";
+  first_seen: string;
+  last_seen: string;
+  /** last_seen - first_seen, in seconds (the task's observed duration). */
+  duration_seconds: number;
+  event_count: number;
+  /** Stage transitions, newest last, capped at 25 like the history viewer. */
+  stages: { stage: string; at: string }[];
+}
+
+const ETA_MIN_PERCENT = 5; // below this, a pace estimate is noise
+const ETA_MIN_ELAPSED_S = 3; // need a few seconds of observed pace
+const ETA_ROUND_S = 5; // round estimates to 5s — no false precision
+
+/**
+ * Derive the display ETA for one task. Honesty rules (dashboard README):
+ * a reported ETA always wins and is never blended with the estimate; an
+ * estimate is computed ONLY from the task's own reported pace
+ * (elapsed × remaining ÷ done) and is labeled "estimated" by the caller;
+ * with too little signal the ETA is null ("estimating…"), never invented.
+ */
+export function deriveEtaSeconds(args: {
+  status: string;
+  percent: number;
+  eta_reported_seconds: number | null;
+  first_seen_ms: number;
+  first_percent: number;
+  event_count: number;
+  now_ms: number;
+}): { eta_seconds: number | null; eta_source: TaskSummary["eta_source"] } {
+  const { status, percent, eta_reported_seconds } = args;
+  if (status === "done" || percent >= 100) {
+    return { eta_seconds: 0, eta_source: "done" };
+  }
+  if (eta_reported_seconds !== null && Number.isFinite(eta_reported_seconds)) {
+    return { eta_seconds: eta_reported_seconds, eta_source: "reported" };
+  }
+  const elapsed_s = (args.now_ms - args.first_seen_ms) / 1000;
+  const gained = percent - args.first_percent;
+  if (
+    args.event_count >= 2 &&
+    percent >= ETA_MIN_PERCENT &&
+    gained > 0 &&
+    elapsed_s >= ETA_MIN_ELAPSED_S
+  ) {
+    const raw = (elapsed_s * (100 - percent)) / percent;
+    const rounded = Math.max(
+      ETA_ROUND_S,
+      Math.round(raw / ETA_ROUND_S) * ETA_ROUND_S
+    );
+    return { eta_seconds: rounded, eta_source: "estimated" };
+  }
+  return { eta_seconds: null, eta_source: "unknown" };
+}
+
+/** Aggregate a flat, time-ordered event list into one summary per task. */
+export function aggregateTasks(
+  events: DashboardEvent[],
+  now_ms: number = Date.now()
+): TaskSummary[] {
+  const byTask = new Map<
+    string,
+    { list: DashboardEvent[]; stages: { stage: string; at: string }[] }
+  >();
+  for (const e of events) {
+    if (e.status === "dropped") continue;
+    let slot = byTask.get(e.task_id);
+    if (!slot) {
+      slot = { list: [], stages: [] };
+      byTask.set(e.task_id, slot);
+    }
+    slot.list.push(e);
+    const lastStage = slot.stages[slot.stages.length - 1];
+    if (e.stage && (!lastStage || lastStage.stage !== e.stage)) {
+      slot.stages.push({ stage: e.stage, at: e.timestamp });
+      if (slot.stages.length > 25) slot.stages.shift();
+    }
+  }
+
+  const out: TaskSummary[] = [];
+  for (const [task_id, { list, stages }] of byTask) {
+    const first = list[0];
+    const latest = list[list.length - 1];
+    const firstMs = Date.parse(first.timestamp);
+    const lastMs = Date.parse(latest.timestamp);
+    let agent: string | null = null;
+    let session_id: string | null = null;
+    for (const e of list) {
+      if (typeof e.agent === "string" && e.agent) agent = e.agent;
+      if (typeof e.session_id === "string" && e.session_id) {
+        session_id = e.session_id;
+      }
+    }
+    const eta_reported =
+      typeof latest.eta_seconds === "number" &&
+      Number.isFinite(latest.eta_seconds)
+        ? latest.eta_seconds
+        : null;
+    const { eta_seconds, eta_source } = deriveEtaSeconds({
+      status: latest.status,
+      percent: latest.percent,
+      eta_reported_seconds: eta_reported,
+      first_seen_ms: firstMs,
+      first_percent: first.percent,
+      event_count: list.length,
+      now_ms,
+    });
+    out.push({
+      task_id,
+      agent,
+      session_id,
+      status: latest.status,
+      percent: latest.percent,
+      stage: latest.stage,
+      message: typeof latest.message === "string" ? latest.message : null,
+      eta_reported_seconds: eta_reported,
+      eta_seconds,
+      eta_source,
+      first_seen: first.timestamp,
+      last_seen: latest.timestamp,
+      duration_seconds: Math.max(0, Math.round((lastMs - firstMs) / 1000)),
+      event_count: list.length,
+      stages,
+    });
+  }
+
+  // Active tasks first (freshest first), then finished (freshest first).
+  const rank = (s: string) => (s === "done" || s === "error" ? 1 : 0);
+  out.sort(
+    (a, b) =>
+      rank(a.status) - rank(b.status) ||
+      Date.parse(b.last_seen) - Date.parse(a.last_seen)
+  );
+  return out;
+}
+
+/** Every retained event-log file in the dir, oldest day first. */
+export function listEventFiles(dir: string): string[] {
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return [];
+  }
+  return names
+    .filter((n) => /^events-\d{4}-\d{2}-\d{2}\.jsonl$/.test(n))
+    .sort()
+    .map((n) => join(dir, n));
 }
 
 /**
@@ -582,6 +750,26 @@ export async function startDashboardServer(
         ok: true,
         count: latest.size,
         tasks: Object.fromEntries(latest),
+      });
+      return;
+    }
+
+    if (pathname === "/api/tasks") {
+      // EVERY task in the retained event log (all days on disk, 7-day
+      // retention), not just today's live sessions: one summary per task
+      // with a display ETA — reported by the agent when it gave one, else
+      // estimated from the task's own reported pace, else null. Finished
+      // tasks stay listed here long after the live view expires them.
+      const all: DashboardEvent[] = [];
+      for (const file of listEventFiles(eventsDir)) {
+        for (const { event } of readEventsFile(file)) all.push(event);
+      }
+      const tasks = aggregateTasks(all);
+      json(res, 200, {
+        ok: true,
+        count: tasks.length,
+        generated_at: new Date().toISOString(),
+        tasks,
       });
       return;
     }
