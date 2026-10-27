@@ -28,15 +28,38 @@ just do the task normally and stay silent about progress.
 
 ## When to report
 
-Any task with **3 or more steps**, or anything lasting longer than
-**~30 seconds**:
+**Every task** with **3 or more steps**, or anything lasting longer than
+**~30 seconds** — every domain, not just long jobs: builds, scrapes,
+research, document work, multi-file edits, delegated runs.
 
 1. **Start**: call `report_progress` with `percent: 0`, `status: "started"`, and `stage` naming what you are about to do.
-2. **Each step boundary**: call it again with your honest `percent` and the new `stage`. Set `status: "paused"` if you are waiting on the user; `status: "error"` with a one-line `message` if something genuinely failed.
+2. **Each step boundary**: call it again with your measured `percent` and the new `stage`. Set `status: "paused"` if you are waiting on the user; `status: "error"` with a one-line `message` if something genuinely failed.
 3. **Done**: `percent: 100`, `status: "done"`, `stage: "Done"`.
 
 For quick single-step answers (a lookup, a short reply), do not report —
 the skill would be noise.
+
+## The honesty standard (owner rule, 2026-10-27): real-time, real ETA, nothing fake
+
+- **Real-time.** Report at the moment work actually lands — a page
+  fetched, a file written, a step verified — never batched afterward,
+  never on a timer pretending to be work.
+- **Percent is measured, not vibes.** Wherever the work is countable,
+  `percent = units done / units total` (items fetched / requested,
+  files processed / total, steps passed / total). It must never move
+  without real work behind it: no interpolation, no easing, no creeping
+  toward 100 to look busy. Cap at 99 until the task is truly complete.
+- **ETA is computed, never imagined.** Once at least one unit of work
+  has measurably landed, `eta_seconds = remaining units / measured rate
+  (units per second so far)`, recomputed at every report so it tightens
+  or honestly worsens as the real rate changes. Before anything has
+  landed, ETA is `null` — "estimating…" is honest, a guessed number is
+  not.
+- **When the total is unknowable** (open-ended research, exploratory
+  debugging), do not invent a denominator: advance percent only at real
+  stage boundaries, put the concrete counts you do have in `message`
+  ("142 of ~500 files scanned" only when the 500 is real), and keep ETA
+  `null` until a rate exists.
 
 ## How to report
 
@@ -46,9 +69,9 @@ the skill would be noise.
 **Field rules** (from the UAPB protocol; `protocol/schema.json` in the repo is machine truth):
 
 - `task_id`: one stable id per task, e.g. `claude:summarize-commits`. Convention: `<your-agent-name>:<task-slug>`. Charset: must start with a letter or digit, then letters, digits, `.`, `_`, `:`, `-`.
-- `percent`: your genuine estimate of completion, 0–100. Out-of-range values are clamped server-side; going backwards is allowed (re-planning happens).
+- `percent`: measured completion, 0–100 (see the honesty standard above). Out-of-range values are clamped server-side; going backwards is allowed when the plan genuinely changes — say why in `message`.
 - `stage`: short present-tense label of what you are doing RIGHT NOW, e.g. `"Searching memory"`, `"Reading config"`, `"Drafting reply"`. Max 120 chars.
-- `eta_seconds`: seconds until you expect to finish, or `null` when you genuinely do not know. **Never fabricate an ETA** — `null` is always acceptable and always honest. A null ETA renders as "estimating…", never as a made-up number.
+- `eta_seconds`: remaining work ÷ measured rate so far, recomputed at each report; `null` until at least one unit of work has landed. **Never fabricate an ETA** — `null` is always acceptable and always honest. A null ETA renders as "estimating…", never as a made-up number.
 - `status`: `started` | `running` | `paused` | `error` | `done`. Default `running`.
 - `message` (optional): one-line detail for the user, max 280 chars. Keep secrets out of it — stage labels and messages are stored in a local event log on the user's machine.
 
