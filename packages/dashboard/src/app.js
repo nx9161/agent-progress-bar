@@ -672,6 +672,86 @@
       });
   }
 
+  /* ---------- all chats (GET /api/sessions) ----------
+   * Every chat in the local registry, joined server-side with the
+   * tasks each chat reported. A chat with no tasks renders as an idle
+   * row — listed, never missing. Latest task per chat shows percent
+   * and the same ETA treatment as the All tasks list. */
+  var chatsSection = null;
+  var chatsList = null;
+  var chatsCount = null;
+
+  function renderChats(sessions) {
+    if (!chatsList) return;
+    while (chatsList.firstChild) chatsList.removeChild(chatsList.firstChild);
+    var now = Date.now();
+    for (var i = 0; i < sessions.length; i++) {
+      var s = sessions[i];
+      var row = el("div", "task-row");
+      var head = el("div", "task-head");
+      var running = s.status === "running";
+      head.appendChild(
+        el("span", running ? "pill pill-running" : "pill pill-paused",
+           running ? "WORKING" : "IDLE")
+      );
+      head.appendChild(el("span", "task-title", s.title));
+      var lt = s.latest_task;
+      head.appendChild(
+        el("span", "task-eta", lt ? etaTextFor(lt, now) : "")
+      );
+      row.appendChild(head);
+      if (lt) {
+        var bar = el("div", "task-bar");
+        var fill = el("div", "task-bar-fill");
+        fill.style.width = Math.max(0, Math.min(100, lt.percent)) + "%";
+        if (lt.status === "done")
+          fill.setAttribute("class", "task-bar-fill is-done");
+        bar.appendChild(fill);
+        row.appendChild(bar);
+        var line = Math.round(lt.percent) + "% · " + lt.task_id;
+        if (lt.stage) line += " · " + lt.stage;
+        if (lt.message) line += " — " + lt.message;
+        row.appendChild(el("div", "task-meta", line));
+        if (s.tasks.length > 1)
+          row.appendChild(
+            el("div", "task-meta task-meta-dim",
+               "+" + (s.tasks.length - 1) + " more task" +
+                 (s.tasks.length > 2 ? "s" : "") + " in All tasks below")
+          );
+      } else {
+        row.appendChild(
+          el("div", "task-meta task-meta-dim", "no progress reported yet")
+        );
+      }
+      chatsList.appendChild(row);
+    }
+    if (chatsCount)
+      chatsCount.textContent =
+        "— " + sessions.length + (sessions.length === 1 ? " chat" : " chats");
+    if (chatsSection) chatsSection.hidden = sessions.length === 0;
+  }
+
+  function loadSessions() {
+    if (!TOKEN) return;
+    fetch("api/sessions?token=" + encodeURIComponent(TOKEN))
+      .then(function (res) {
+        if (!res.ok) throw new Error("sessions " + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        var list = data && Array.isArray(data.sessions) ? data.sessions : [];
+        var valid = [];
+        for (var i = 0; i < list.length; i++) {
+          var s = list[i];
+          if (s && typeof s.title === "string" && s.title) valid.push(s);
+        }
+        renderChats(valid);
+      })
+      .catch(function () {
+        /* auxiliary view: a failed poll keeps the last good render */
+      });
+  }
+
   /* ---------- snapshot + SSE ---------- */
   function showError(title) {
     errorVisible = true;
@@ -819,6 +899,9 @@
     allTasksSection = document.getElementById("allTasksSection");
     allTasksList = document.getElementById("allTasksList");
     allTasksCount = document.getElementById("allTasksCount");
+    chatsSection = document.getElementById("chatsSection");
+    chatsList = document.getElementById("chatsList");
+    chatsCount = document.getElementById("chatsCount");
     announcer = document.getElementById("srAnnouncer");
 
     var chips = document.querySelectorAll(".chip[data-filter]");
@@ -851,7 +934,9 @@
     renderSkeletons();
     loadSnapshot();
     loadAllTasks();
+    loadSessions();
     setInterval(loadAllTasks, ALL_TASKS_POLL_MS);
+    setInterval(loadSessions, ALL_TASKS_POLL_MS);
     setInterval(tick, TICK_MS);
   }
 

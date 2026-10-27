@@ -33,6 +33,10 @@ ETA per task, in priority order:
 
 An estimate is never blended with a reported ETA, and the `est.` label is part of the contract: it is a pace projection, not the agent's claim.
 
+## All chats
+
+Above All tasks, the **All chats** section lists *every* chat in the local session registry (`~/.agent-progress/sessions.json`, written by the host agent), working or idle — a chat is never silently missing just because it has reported nothing. `GET /api/sessions?token=<redacted> joins the registry with the task aggregation: each chat carries its reported tasks (matched by exact `task_ids` or `task_prefixes` in its registry entry) and its latest task's percent + ETA, rendered with the same honesty rules as below. Tasks no chat claims are counted as `unassigned_count` and still appear in All tasks. Working chats sort first, then alphabetically.
+
 ## The tier system
 
 A bar for a 300ms session is noise, so rows are time-tiered by session age:

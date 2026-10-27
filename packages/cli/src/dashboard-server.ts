@@ -317,6 +317,108 @@ export function aggregateTasks(
   return out;
 }
 
+/**
+ * One chat/session in the local registry (~/.agent-progress/sessions.json).
+ * The registry is written by the host agent (the bridge): every chat the
+ * user has is listed there, working or idle, so the dashboard can show
+ * EVERY chat — a chat with no reported tasks renders as an idle row,
+ * never silently missing. Tasks join to a session by exact task_id
+ * (task_ids) or by task_id prefix (task_prefixes).
+ */
+export interface SessionInfo {
+  id: string;
+  title: string;
+  kind: string;
+  status: string; // "running" | "idle" (host-reported; rendered as-is)
+  updated_at: string;
+  task_ids?: string[];
+  task_prefixes?: string[];
+}
+
+export interface SessionSummary extends SessionInfo {
+  tasks: TaskSummary[];
+  latest_task: TaskSummary | null;
+}
+
+/** Read + validate the session registry. Missing/malformed => []. */
+export function readSessionsFile(dir: string): SessionInfo[] {
+  let raw: string;
+  try {
+    raw = readFileSync(join(dir, "sessions.json"), "utf8");
+  } catch {
+    return [];
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  const out: SessionInfo[] = [];
+  for (const item of parsed) {
+    if (!item || typeof item !== "object") continue;
+    const s = item as Record<string, unknown>;
+    if (
+      typeof s.id !== "string" ||
+      !s.id ||
+      typeof s.title !== "string" ||
+      !s.title ||
+      typeof s.updated_at !== "string"
+    ) {
+      continue;
+    }
+    const clean: SessionInfo = {
+      id: s.id,
+      title: s.title,
+      kind: typeof s.kind === "string" && s.kind ? s.kind : "chat",
+      status: typeof s.status === "string" && s.status ? s.status : "idle",
+      updated_at: s.updated_at,
+    };
+    if (Array.isArray(s.task_ids)) {
+      clean.task_ids = s.task_ids.filter(
+        (x): x is string => typeof x === "string" && x.length > 0
+      );
+    }
+    if (Array.isArray(s.task_prefixes)) {
+      clean.task_prefixes = s.task_prefixes.filter(
+        (x): x is string => typeof x === "string" && x.length > 0
+      );
+    }
+    out.push(clean);
+  }
+  return out;
+}
+
+/** Join aggregated tasks onto registry sessions; count what is left over. */
+export function joinSessions(
+  sessions: SessionInfo[],
+  tasks: TaskSummary[]
+): { sessions: SessionSummary[]; unassigned_count: number } {
+  const assigned = new Set<string>();
+  const out: SessionSummary[] = sessions.map((s) => {
+    const mine = tasks.filter((t) => {
+      const byId = s.task_ids?.includes(t.task_id) ?? false;
+      const byPrefix =
+        s.task_prefixes?.some((p) => t.task_id.startsWith(p)) ?? false;
+      return byId || byPrefix;
+    });
+    for (const t of mine) assigned.add(t.task_id);
+    return {
+      ...s,
+      tasks: mine,
+      latest_task: mine.length > 0 ? mine[0] : null,
+    };
+  });
+  // Working chats first, then by title — the page reads like a chat list.
+  out.sort((a, b) => {
+    const ra = a.status === "running" ? 0 : 1;
+    const rb = b.status === "running" ? 0 : 1;
+    return ra - rb || a.title.localeCompare(b.title);
+  });
+  return { sessions: out, unassigned_count: tasks.length - assigned.size };
+}
+
 /** Every retained event-log file in the dir, oldest day first. */
 export function listEventFiles(dir: string): string[] {
   let names: string[];
@@ -770,6 +872,30 @@ export async function startDashboardServer(
         count: tasks.length,
         generated_at: new Date().toISOString(),
         tasks,
+      });
+      return;
+    }
+
+    if (pathname === "/api/sessions") {
+      // EVERY chat in the local registry, each with the progress of the
+      // tasks it reported (joined from /api/tasks aggregation). A chat
+      // with no reported tasks is returned with an empty list — the UI
+      // renders it as an idle row, so no chat is ever silently missing.
+      const all: DashboardEvent[] = [];
+      for (const file of listEventFiles(eventsDir)) {
+        for (const { event } of readEventsFile(file)) all.push(event);
+      }
+      const tasks = aggregateTasks(all);
+      const { sessions, unassigned_count } = joinSessions(
+        readSessionsFile(eventsDir),
+        tasks
+      );
+      json(res, 200, {
+        ok: true,
+        count: sessions.length,
+        generated_at: new Date().toISOString(),
+        sessions,
+        unassigned_count,
       });
       return;
     }

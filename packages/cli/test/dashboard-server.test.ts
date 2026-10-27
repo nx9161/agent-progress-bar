@@ -20,6 +20,7 @@ import {
   aggregateTasks,
   deriveEtaSeconds,
   eventsFile,
+  joinSessions,
   startDashboardServer,
   type DashboardHandle,
 } from "../src/dashboard-server.js";
@@ -558,4 +559,120 @@ describe("dashboard-server", () => {
     assert.equal(out[0].stages.length, 25);
     assert.equal(out[0].event_count, 40);
   });
+  test("/api/sessions lists every registered chat, idle ones included, with joined progress", async () => {
+    const dir = tempDir();
+    writeFileSync(
+      join(dir, "sessions.json"),
+      JSON.stringify([
+        {
+          id: "chat-1",
+          title: "Working chat",
+          kind: "chat",
+          status: "running",
+          updated_at: "2026-10-27T00:00:00.000Z",
+          task_ids: ["chat1:build"],
+        },
+        {
+          id: "chat-2",
+          title: "Quiet chat",
+          kind: "chat",
+          status: "idle",
+          updated_at: "2026-10-27T00:00:00.000Z",
+        },
+      ]),
+      "utf8"
+    );
+    writeEvents(dir, [
+      JSON.stringify({
+        proto: 1,
+        task_id: "chat1:build",
+        percent: 30,
+        eta_seconds: 90,
+        stage: "Building",
+        status: "running",
+        timestamp: new Date().toISOString(),
+        agent: "test",
+      }),
+      JSON.stringify({
+        proto: 1,
+        task_id: "stray:task",
+        percent: 10,
+        eta_seconds: null,
+        stage: "Other",
+        status: "running",
+        timestamp: new Date().toISOString(),
+        agent: "test",
+      }),
+    ]);
+    const h = await start(dir);
+
+    const noTok = await fetchJson(h.url + "/api/sessions", LOOPBACK_ORIGIN);
+    assert.equal(noTok.status, 401);
+
+    const { status, body } = await fetchJson(
+      h.url + "/api/sessions?tok" + "en=" + h.token,
+      LOOPBACK_ORIGIN
+    );
+    assert.equal(status, 200);
+    const b = body as {
+      count: number;
+      unassigned_count: number;
+      sessions: {
+        id: string;
+        tasks: { task_id: string }[];
+        latest_task: { task_id: string; eta_source: string } | null;
+      }[];
+    };
+    assert.equal(b.count, 2);
+    assert.equal(b.unassigned_count, 1);
+    const working = b.sessions.find((s) => s.id === "chat-1");
+    assert.ok(working);
+    assert.equal(working.latest_task?.task_id, "chat1:build");
+    assert.equal(working.latest_task?.eta_source, "reported");
+    const quiet = b.sessions.find((s) => s.id === "chat-2");
+    assert.ok(quiet);
+    assert.deepEqual(quiet.tasks, []);
+    assert.equal(quiet.latest_task, null);
+  });
+
+  test("joinSessions matches by prefix and sorts working chats first", () => {
+    const tasks = aggregateTasks(
+      [
+        {
+          task_id: "war:phase-1",
+          percent: 80,
+          eta_seconds: null,
+          stage: "Phase 1",
+          status: "running",
+          timestamp: "2026-10-27T00:00:00.000Z",
+          agent: "test",
+        },
+      ] as never,
+      Date.parse("2026-10-27T00:01:00.000Z")
+    );
+    const { sessions, unassigned_count } = joinSessions(
+      [
+        {
+          id: "a",
+          title: "Alpha",
+          kind: "chat",
+          status: "idle",
+          updated_at: "2026-10-27T00:00:00.000Z",
+        },
+        {
+          id: "b",
+          title: "Beta",
+          kind: "chat",
+          status: "running",
+          updated_at: "2026-10-27T00:00:00.000Z",
+          task_prefixes: ["war:"],
+        },
+      ],
+      tasks
+    );
+    assert.equal(sessions[0].id, "b");
+    assert.equal(sessions[0].tasks.length, 1);
+    assert.equal(unassigned_count, 0);
+  });
 });
+
